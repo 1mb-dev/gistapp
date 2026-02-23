@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <style>
     @media (prefers-color-scheme: dark) {
-      .bg { fill: #5b8def; }
-      .fg { fill: #0f1218; }
+      .bg { fill: #818cf8; }
+      .fg { fill: #0f0e22; }
     }
   </style>
-  <rect class="bg" width="32" height="32" rx="6" fill="#2563eb"/>
-  <text class="fg" x="50%" y="52%" dominant-baseline="central" text-anchor="middle"
-    font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#fff">G</text>
+  <rect class="bg" width="32" height="32" rx="8" fill="#4338ca"/>
+  <text class="fg" x="50%" y="53%" dominant-baseline="central" text-anchor="middle"
+    font-family="Georgia, serif" font-size="20" font-style="italic" font-weight="400" fill="#fff">G</text>
 </svg>

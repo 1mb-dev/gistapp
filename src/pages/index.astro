@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 ---
 
 <Base title="Gist — Turn your app idea into a build-ready spec">
-  <header class="site-header">
+  <header class="site-header animate-in">
     <div class="container">
       <a href="/" class="logo" aria-label="Gist home">Gist</a>
     </div>
@@ -11,18 +11,20 @@ import Base from '../layouts/Base.astro';
 
   <main>
     <section class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
       <div class="container">
-        <h1 class="hero-title">
+        <p class="hero-eyebrow animate-in">Zero-stack app specifications</p>
+        <h1 class="hero-title animate-in-delay-1">
           Describe your idea.<br />
-          <span class="hero-accent">Get a spec AI can build from.</span>
+          <em class="hero-accent">Get a spec AI can build from.</em>
         </h1>
-        <p class="hero-subtitle">
-          Answer a few questions about your app — what it does, who it's for, where the data lives.
+        <p class="hero-subtitle animate-in-delay-2">
+          Answer a few questions about your app &mdash; what it does, who it's for, where the data lives.
           Gist turns your answers into a deployment-ready specification that Claude, Cursor, or Codex
           can implement without the back-and-forth.
         </p>
-        <div class="hero-actions">
-          <a href="/create" class="btn btn-primary">Create your spec</a>
+        <div class="hero-actions animate-in-delay-3">
+          <a href="/create" class="btn btn-primary">Create your spec <span class="btn-arrow" aria-hidden="true">&rarr;</span></a>
           <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
         </div>
       </div>
@@ -43,7 +45,7 @@ import Base from '../layouts/Base.astro';
             <span class="step-number">2</span>
             <div class="step-content">
               <h3>Answer a few questions</h3>
-              <p>We ask about data, hosting, and design. Every option is laid out with trade-offs visible — pick what fits, skip what doesn't matter.</p>
+              <p>We ask about data, hosting, and design. Every option is laid out with trade-offs visible &mdash; pick what fits, skip what doesn't matter.</p>
             </div>
           </li>
           <li class="step">
@@ -60,29 +62,31 @@ import Base from '../layouts/Base.astro';
     <section class="spec-preview-section">
       <div class="container">
         <h2 class="section-title">What you get</h2>
-        <p class="section-subtitle">A real spec — not a template. Tailored to your answers, right-sized to your app's complexity.</p>
+        <p class="section-subtitle">A real spec &mdash; not a template. Tailored to your answers, right-sized to your app's complexity.</p>
         <div class="spec-preview">
           <div class="spec-preview-header">
-            <span class="spec-preview-dot"></span>
-            <span class="spec-preview-dot"></span>
-            <span class="spec-preview-dot"></span>
+            <div class="spec-preview-dots">
+              <span class="spec-preview-dot dot-red"></span>
+              <span class="spec-preview-dot dot-yellow"></span>
+              <span class="spec-preview-dot dot-green"></span>
+            </div>
             <span class="spec-preview-filename">weather-now-gist-spec-v1.0.md</span>
           </div>
-          <pre class="spec-preview-body"><code># Weather Now — Gist Specification
+          <pre class="spec-preview-body"><code># Weather Now &mdash; Gist Specification
 
 ## Meta
 - Gist version: 1.0
 - Complexity tier: minimal
 
 ## Summary
-> A clutter-free personal weather app. Fetches weather
-> from Open-Meteo (free, no key) directly from the
-> browser. Plain HTML/CSS/JS — no framework, no build
-> step, no server. Deploy static files to Cloudflare Pages.
+&gt; A clutter-free personal weather app. Fetches weather
+&gt; from Open-Meteo (free, no key) directly from the
+&gt; browser. Plain HTML/CSS/JS &mdash; no framework, no build
+&gt; step, no server. Deploy static files to Cloudflare Pages.
 
 ## Architecture
 - Host: Cloudflare Pages (free tier)
-- Framework: None — plain HTML/CSS/JS
+- Framework: None &mdash; plain HTML/CSS/JS
 - Proxy: None (API is free, no key needed)
 
 ## Implementation Order
@@ -104,20 +108,32 @@ import Base from '../layouts/Base.astro';
         <h2 class="section-title">Why a spec matters</h2>
         <div class="value-grid">
           <article class="value-card">
+            <div class="value-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10h14M10 3v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
             <h3>Right-sized architecture</h3>
             <p>A simple app gets 4 static files. A complex one gets Workers, KV, and cron. Your spec matches your actual needs.</p>
           </article>
           <article class="value-card">
+            <div class="value-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="8" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 8V5a4 4 0 118 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
             <h3>Security from the start</h3>
             <p>API keys never touch your frontend. Trust boundaries are explicit. The pre-ship checklist catches what you'd miss.</p>
           </article>
           <article class="value-card">
+            <div class="value-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 16l4-4m0 0l4-4m-4 4l4 4m-4-4L4 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6h2m0 0v2m0-2l-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
             <h3>Less back-and-forth</h3>
             <p>Without a spec, Claude asks a dozen clarifying questions. With one, it can start building immediately.</p>
           </article>
           <article class="value-card">
+            <div class="value-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
             <h3>Free tier aware</h3>
-            <p>Every recommendation fits within free tier limits. Budget math is included — no surprise charges.</p>
+            <p>Every recommendation fits within free tier limits. Budget math is included &mdash; no surprise charges.</p>
           </article>
         </div>
       </div>
@@ -127,7 +143,7 @@ import Base from '../layouts/Base.astro';
       <div class="container">
         <h2 class="cta-title">Ready to build something?</h2>
         <p class="cta-subtitle">Five minutes of questions. A spec you can hand to any AI coding assistant.</p>
-        <a href="/create" class="btn btn-primary btn-lg">Create your spec</a>
+        <a href="/create" class="btn btn-primary btn-lg">Create your spec <span class="btn-arrow" aria-hidden="true">&rarr;</span></a>
       </div>
     </section>
   </main>
@@ -143,33 +159,59 @@ import Base from '../layouts/Base.astro';
   /* header */
   .site-header {
     padding: var(--space-5) 0;
+    position: relative;
+    z-index: 10;
   }
 
   .logo {
-    font-size: var(--text-xl);
-    font-weight: var(--weight-bold);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-style: italic;
     color: var(--color-text);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   /* hero */
   .hero {
-    padding: var(--space-16) 0 var(--space-12);
+    position: relative;
+    padding: var(--space-16) 0 var(--space-20);
     text-align: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 50% 0%, var(--color-accent-subtle) 0%, transparent 60%);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    color: var(--color-accent);
+    margin-bottom: var(--space-5);
+    font-weight: var(--weight-medium);
   }
 
   .hero-title {
-    font-size: var(--text-3xl);
-    font-weight: var(--weight-bold);
+    font-family: var(--font-display);
+    font-size: var(--text-4xl);
+    font-weight: var(--weight-normal);
     line-height: var(--leading-tight);
-    letter-spacing: -0.03em;
+    letter-spacing: var(--tracking-tight);
     color: var(--color-text);
-    max-width: 600px;
+    max-width: 640px;
     margin-inline: auto;
   }
 
   .hero-accent {
     color: var(--color-accent);
+    font-style: italic;
   }
 
   .hero-subtitle {
@@ -177,14 +219,14 @@ import Base from '../layouts/Base.astro';
     font-size: var(--text-lg);
     line-height: var(--leading-relaxed);
     color: var(--color-text-secondary);
-    max-width: 540px;
+    max-width: 520px;
     margin-inline: auto;
   }
 
   .hero-actions {
-    margin-top: var(--space-8);
+    margin-top: var(--space-10);
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-4);
     justify-content: center;
     flex-wrap: wrap;
   }
@@ -194,72 +236,85 @@ import Base from '../layouts/Base.astro';
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-3) var(--space-6);
-    border-radius: var(--radius-md);
-    font-size: var(--text-base);
+    gap: var(--space-2);
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     cursor: pointer;
     border: none;
-    transition: background var(--duration-fast) var(--easing),
-                color var(--duration-fast) var(--easing),
-                box-shadow var(--duration-fast) var(--easing);
+    transition: all var(--duration-normal) var(--easing);
     min-height: 44px;
     text-decoration: none;
+    letter-spacing: var(--tracking-wide);
   }
 
   .btn-primary {
     background: var(--color-accent);
     color: var(--color-accent-text);
+    box-shadow: 0 1px 2px rgba(67, 56, 202, 0.2), 0 4px 12px rgba(67, 56, 202, 0.15);
   }
 
   .btn-primary:hover {
     background: var(--color-accent-hover);
+    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2), 0 8px 20px rgba(67, 56, 202, 0.2);
+    transform: translateY(-1px);
   }
 
   .btn-ghost {
     background: transparent;
     color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
   }
 
   .btn-ghost:hover {
-    background: var(--color-bg-overlay);
+    background: var(--color-bg-raised);
     color: var(--color-text);
-    border-color: var(--color-border);
+    border-color: var(--color-text-muted);
   }
 
   .btn-lg {
-    padding: var(--space-4) var(--space-8);
-    font-size: var(--text-lg);
+    padding: 0.875rem 2.25rem;
+    font-size: var(--text-base);
+  }
+
+  .btn-arrow {
+    transition: transform var(--duration-fast) var(--easing);
+  }
+
+  .btn:hover .btn-arrow {
+    transform: translateX(3px);
   }
 
   /* steps */
   .steps {
-    padding: var(--space-16) 0;
+    padding: var(--space-20) 0;
   }
 
   .section-title {
-    font-size: var(--text-2xl);
-    font-weight: var(--weight-bold);
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-tight);
     text-align: center;
-    margin-bottom: var(--space-10);
+    margin-bottom: var(--space-12);
   }
 
   .section-subtitle {
     text-align: center;
     color: var(--color-text-secondary);
-    font-size: var(--text-lg);
-    margin-top: calc(-1 * var(--space-6));
-    margin-bottom: var(--space-10);
-    max-width: 520px;
+    font-size: var(--text-base);
+    margin-top: calc(-1 * var(--space-8));
+    margin-bottom: var(--space-12);
+    max-width: 480px;
     margin-inline: auto;
+    line-height: var(--leading-relaxed);
   }
 
   .step-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-8);
     max-width: 480px;
     margin-inline: auto;
   }
@@ -278,9 +333,10 @@ import Base from '../layouts/Base.astro';
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-full);
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-    font-weight: var(--weight-semibold);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-weight: var(--weight-normal);
     font-size: var(--text-sm);
   }
 
@@ -288,6 +344,7 @@ import Base from '../layouts/Base.astro';
     font-size: var(--text-base);
     font-weight: var(--weight-semibold);
     margin-bottom: var(--space-1);
+    letter-spacing: var(--tracking-tight);
   }
 
   .step-content p {
@@ -298,15 +355,14 @@ import Base from '../layouts/Base.astro';
 
   /* spec preview */
   .spec-preview-section {
-    padding: var(--space-12) 0 var(--space-16);
+    padding: var(--space-12) 0 var(--space-20);
   }
 
   .spec-preview {
     background: var(--color-bg-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-xl);
     max-width: 560px;
     margin-inline: auto;
   }
@@ -314,31 +370,38 @@ import Base from '../layouts/Base.astro';
   .spec-preview-header {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
     background: var(--color-bg-sunken);
     border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .spec-preview-dots {
+    display: flex;
+    gap: 6px;
   }
 
   .spec-preview-dot {
     width: 10px;
     height: 10px;
     border-radius: var(--radius-full);
-    background: var(--color-border);
   }
 
+  .dot-red { background: #ef4444; opacity: 0.7; }
+  .dot-yellow { background: #f59e0b; opacity: 0.7; }
+  .dot-green { background: #22c55e; opacity: 0.7; }
+
   .spec-preview-filename {
-    margin-left: var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
 
   .spec-preview-body {
-    padding: var(--space-5);
+    padding: var(--space-6);
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: 0.8rem;
     line-height: var(--leading-relaxed);
     color: var(--color-text-secondary);
     background: var(--color-bg-raised);
@@ -354,7 +417,7 @@ import Base from '../layouts/Base.astro';
 
   /* value props */
   .value-props {
-    padding: var(--space-12) 0;
+    padding: var(--space-20) 0;
     background: var(--color-bg-sunken);
   }
 
@@ -368,15 +431,35 @@ import Base from '../layouts/Base.astro';
 
   .value-card {
     background: var(--color-bg-raised);
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     padding: var(--space-6);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--duration-normal) var(--easing),
+                transform var(--duration-normal) var(--easing);
+  }
+
+  .value-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .value-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    margin-bottom: var(--space-4);
   }
 
   .value-card h3 {
     font-size: var(--text-base);
     font-weight: var(--weight-semibold);
     margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-tight);
   }
 
   .value-card p {
@@ -387,25 +470,28 @@ import Base from '../layouts/Base.astro';
 
   /* CTA */
   .cta-section {
-    padding: var(--space-16) 0;
+    padding: var(--space-24) 0;
     text-align: center;
   }
 
   .cta-title {
-    font-size: var(--text-2xl);
-    font-weight: var(--weight-bold);
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-tight);
   }
 
   .cta-subtitle {
-    margin-top: var(--space-3);
+    margin-top: var(--space-4);
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-10);
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
   }
 
   /* footer */
   .site-footer {
-    padding: var(--space-8) 0;
+    padding: var(--space-10) 0;
     border-top: 1px solid var(--color-border-subtle);
     text-align: center;
     font-size: var(--text-sm);
@@ -415,17 +501,21 @@ import Base from '../layouts/Base.astro';
   .footer-link {
     color: var(--color-text-secondary);
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration-color: var(--color-border);
+    text-underline-offset: 3px;
+    transition: color var(--duration-fast) var(--easing),
+                text-decoration-color var(--duration-fast) var(--easing);
   }
 
   .footer-link:hover {
     color: var(--color-text);
+    text-decoration-color: var(--color-text);
   }
 
   /* responsive */
   @media (min-width: 640px) {
     .hero-title {
-      font-size: var(--text-4xl);
+      font-size: var(--text-5xl);
     }
 
     .value-grid {
