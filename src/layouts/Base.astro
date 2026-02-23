@@ -11,6 +11,7 @@ const {
 
 const siteName = 'Gist';
 const fullTitle = title === siteName ? title : `${title} — ${siteName}`;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -28,6 +29,7 @@ const fullTitle = title === siteName ? title : `${title} — ${siteName}`;
     <meta property="og:type" content="website" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href={canonicalURL} />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
     <title>{fullTitle}</title>
