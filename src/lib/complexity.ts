@@ -81,7 +81,7 @@ export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
   // Public scale with API = likely needs caching proxy
   if (answers.scale === 'public') return true;
   // If user named an API that commonly requires a key, suggest proxy
-  // (The spec generator will add a research note for Claude to verify)
+  // (The spec generator will add a research note for the AI assistant to verify)
   return false;
 }
 
