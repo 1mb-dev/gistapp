@@ -175,6 +175,17 @@ export default {
         return corsResponse(null, 204);
       }
 
+      if (url.pathname === '/' && request.method === 'GET') {
+        return new Response(JSON.stringify({ service: 'gist-insights', status: 'ok' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname === '/health' && request.method === 'GET') {
+        return new Response('ok', { status: 200 });
+      }
+
       if (url.pathname === '/api/event' && request.method === 'POST') {
         return handleEvent(request, env);
       }

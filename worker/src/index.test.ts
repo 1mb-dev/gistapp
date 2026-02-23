@@ -130,6 +130,25 @@ describe('OPTIONS (preflight)', () => {
   });
 });
 
+describe('GET /', () => {
+  it('returns service identity JSON', async () => {
+    const request = new Request('https://worker.test/', { method: 'GET' });
+    const res = await worker.fetch(request, makeEnv());
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ service: 'gist-insights', status: 'ok' });
+  });
+});
+
+describe('GET /health', () => {
+  it('returns 200 ok', async () => {
+    const request = new Request('https://worker.test/health', { method: 'GET' });
+    const res = await worker.fetch(request, makeEnv());
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('ok');
+  });
+});
+
 describe('unknown routes', () => {
   it('returns 404', async () => {
     const request = new Request('https://worker.test/unknown', { method: 'GET' });
