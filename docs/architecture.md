@@ -21,7 +21,7 @@ Three TypeScript modules in `src/lib/` contain the product logic:
 
 Defines the structured question flow users walk through. Each question has:
 
-- An ID, title, and response mode (`pick-one`, `free-text`, or `multi-field`)
+- An ID, title, and response mode (`pick-one` or `multi-field`)
 - Optional visibility conditions (e.g., the data freshness question only appears when an external data source is selected)
 - Persona overlays that adjust wording and auto-default certain answers for non-technical users
 

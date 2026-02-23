@@ -81,10 +81,10 @@ export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
   if (dataSource !== 'public-api' && dataSource !== 'rss') {
     return false;
   }
-  // Public scale with API = likely needs caching proxy
+  // Public scale with API = likely needs caching proxy.
+  // Non-public scales return false here; the Research Notes section tells
+  // the AI assistant to check auth requirements and add a proxy if needed.
   if (answers.scale === 'public') return true;
-  // If user named an API that commonly requires a key, suggest proxy
-  // (The spec generator will add a research note for the AI assistant to verify)
   return false;
 }
 

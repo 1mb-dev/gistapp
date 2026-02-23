@@ -119,6 +119,31 @@ describe('generateSpec', () => {
     expect(spec).toContain('# My Broken Title — Gist Specification');
     expect(spec).not.toContain('# My\n');
   });
+
+  it('escapes markdown heading in description', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      description: '## Injected heading',
+    });
+    expect(spec).toContain('\\## Injected heading');
+    expect(spec).not.toContain('\n## Injected heading');
+  });
+
+  it('escapes blockquote marker in description', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      description: '> Injected quote',
+    });
+    expect(spec).toContain('\\> Injected quote');
+  });
+
+  it('passes normal description through unchanged', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      description: 'A simple weather app for commuters',
+    });
+    expect(spec).toContain('A simple weather app for commuters');
+  });
 });
 
 describe('generateFilename', () => {
