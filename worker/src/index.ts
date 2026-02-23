@@ -16,8 +16,11 @@ const ALLOWED_EVENTS = [
 
 type AllowedEvent = (typeof ALLOWED_EVENTS)[number];
 
-const MAX_PAYLOAD_BYTES = 512;
+const MAX_PAYLOAD_CHARS = 512;
 
+// CORS only applies to browsers; use curl for local testing. For browser testing
+// with wrangler dev, requests from localhost won't match this origin — test with
+// curl or deploy to staging.
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': 'https://gist.1mb.dev',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -39,20 +42,24 @@ async function increment(kv: KVNamespace, key: string): Promise<void> {
   const current = Number(raw);
   if (raw !== null && isNaN(current)) {
     console.error(`Corrupt KV value for key "${key}": "${raw}"`);
+    return;
   }
-  await kv.put(key, String((isNaN(current) ? 0 : current) + 1));
+  const newCount = (isNaN(current) ? 0 : current) + 1;
+  await kv.put(key, String(newCount), { metadata: { count: newCount } });
 }
 
-/** Constant-time string comparison to prevent timing attacks on token auth. */
+/** Constant-time string comparison to prevent timing attacks on token auth.
+ *  Pads shorter input to match the longer so execution time depends only on
+ *  max(a.length, b.length), not on whether lengths differ. */
 function timingSafeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
   const encoder = new TextEncoder();
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
-  // XOR all bytes; if any differ, result is non-zero
-  let mismatch = 0;
-  for (let i = 0; i < bufA.length; i++) {
-    mismatch |= bufA[i] ^ bufB[i];
+  const len = Math.max(bufA.length, bufB.length);
+  // Length mismatch flag — incorporated into result without early return
+  let mismatch = bufA.length !== bufB.length ? 1 : 0;
+  for (let i = 0; i < len; i++) {
+    mismatch |= (bufA[i] ?? 0) ^ (bufB[i] ?? 0);
   }
   return mismatch === 0;
 }
@@ -86,6 +93,7 @@ function getDimensionalKeys(
   if (
     event === 'question_completed' &&
     typeof data.stepIndex === 'number' &&
+    Number.isInteger(data.stepIndex) &&
     data.stepIndex >= 0 &&
     data.stepIndex < 100
   ) {
@@ -110,7 +118,7 @@ async function handleEvent(request: Request, env: Env): Promise<Response> {
   }
 
   const raw = await request.text();
-  if (raw.length > MAX_PAYLOAD_BYTES) {
+  if (raw.length > MAX_PAYLOAD_CHARS) {
     return corsResponse('Payload too large', 413);
   }
 
@@ -154,22 +162,16 @@ async function handleStats(request: Request, env: Env): Promise<Response> {
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().slice(0, 10);
 
-    // KV list returns up to 1000 keys per call. At current traffic (~tens of events/day),
-    // pagination is not needed.
+    // KV list returns up to 1000 keys per call with metadata. At current traffic
+    // (~tens of events/day), pagination is not needed. Count stored in metadata
+    // during put() avoids N+1 individual get() calls.
     const listed = await env.INSIGHTS.list({ prefix: `${dateStr}:` });
     const dayData: Record<string, number> = {};
 
-    const entries = await Promise.all(
-      listed.keys.map(async (key: { name: string }) => {
-        const val = await env.INSIGHTS.get(key.name);
-        return { name: key.name, value: Number(val) || 0 };
-      }),
-    );
-
-    for (const entry of entries) {
-      // Strip date prefix for cleaner keys
-      const shortKey = entry.name.slice(dateStr.length + 1);
-      dayData[shortKey] = entry.value;
+    for (const key of listed.keys) {
+      const shortKey = key.name.slice(dateStr.length + 1);
+      const meta = key.metadata as { count?: number } | null;
+      dayData[shortKey] = meta?.count ?? 0;
     }
 
     if (Object.keys(dayData).length > 0) {
@@ -188,11 +190,15 @@ export default {
     try {
       const url = new URL(request.url);
 
-      // CORS preflight (defensive — sendBeacon with text/plain is a simple request)
-      if (request.method === 'OPTIONS') {
+      // CORS preflight — scoped to API endpoints only
+      if (
+        request.method === 'OPTIONS' &&
+        (url.pathname === '/api/event' || url.pathname === '/api/stats')
+      ) {
         return corsResponse(null, 204);
       }
 
+      // No CORS: monitoring endpoints, not called from browser
       if (url.pathname === '/' && request.method === 'GET') {
         return new Response(JSON.stringify({ service: 'gist-insights', status: 'ok' }), {
           status: 200,

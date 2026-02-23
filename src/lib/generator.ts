@@ -35,7 +35,7 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionAccessibility(answers));
   sections.push(sectionLocale());
   sections.push(sectionConfigChecklist(answers, tier));
-  sections.push(sectionBudgetMath(answers));
+  sections.push(sectionBudgetMath(answers, tier));
 
   if (hasResearchNotes(answers)) {
     sections.push(sectionResearchNotes(answers));
@@ -48,6 +48,13 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionFooter(meta));
 
   return sections.filter(Boolean).join('\n\n');
+}
+
+/** Extract the suggested prompt text from a generated spec.
+ *  Returns the quoted prompt body, or a fallback message if the section isn't found. */
+export function extractSuggestedPrompt(spec: string): string {
+  const match = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
+  return match ? match[1] : 'See the "Suggested Prompt" section in your spec.';
 }
 
 /** Generate the kebab-case filename */
@@ -94,17 +101,17 @@ function resolveDeviceTarget(a: Partial<UserAnswers>): string | undefined {
 /** Checks external data using resolved source ('unsure' → 'no-external') because
  *  the spec generator needs resolved values. The questions.ts version intentionally
  *  checks raw answers to control conditional question visibility. */
-function hasExternalData(a: Partial<UserAnswers>): boolean {
+function hasResolvedExternalData(a: Partial<UserAnswers>): boolean {
   const src = resolveDataSource(a);
   return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
 }
 
-function hasUserContent(a: Partial<UserAnswers>): boolean {
+function hasResolvedUserContent(a: Partial<UserAnswers>): boolean {
   return a.dataSource === 'user-content';
 }
 
 function hasResearchNotes(a: Partial<UserAnswers>): boolean {
-  return hasExternalData(a) || a.hosting === 'unsure' || a.scale === 'unsure';
+  return hasResolvedExternalData(a) || a.hosting === 'unsure' || a.scale === 'unsure';
 }
 
 function hostingName(a: Partial<UserAnswers>): string {
@@ -166,7 +173,7 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
 
   parts.push(`> ${a.description ? sanitizeBlock(a.description) : 'A web application.'}`);
 
-  if (hasExternalData(a) && a.apiKnownName) {
+  if (hasResolvedExternalData(a) && a.apiKnownName) {
     parts.push(`> Uses ${sanitizeLine(a.apiKnownName)} for data.`);
   }
 
@@ -208,7 +215,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   const lines: string[] = ['## Architecture'];
 
   // Data & Caching (conditional)
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     lines.push('');
     lines.push('### Data & Caching');
 
@@ -268,7 +275,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   }
 
   // APIs to Integrate (conditional)
-  if (hasExternalData(a) && (a.apiDescription || a.apiKnownName)) {
+  if (hasResolvedExternalData(a) && (a.apiDescription || a.apiKnownName)) {
     lines.push('');
     lines.push('### APIs to Integrate');
 
@@ -304,7 +311,10 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
         '- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation',
       );
     }
-    if (hasExternalData(a) && (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')) {
+    if (
+      hasResolvedExternalData(a) &&
+      (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')
+    ) {
       libs.push(
         '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
       );
@@ -320,7 +330,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   }
 
   // User Input & Storage (conditional)
-  if (hasUserContent(a)) {
+  if (hasResolvedUserContent(a)) {
     lines.push('');
     lines.push('### User Input & Storage');
 
@@ -368,7 +378,7 @@ function sectionUXStates(a: Partial<UserAnswers>, tier: ComplexityTier): string 
     '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
   );
 
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     lines.push(
       '- **Empty / First Use** — Prompt user for initial input or location. Clear call to action.',
     );
@@ -382,13 +392,13 @@ function sectionUXStates(a: Partial<UserAnswers>, tier: ComplexityTier): string 
     '- **Success** — Primary content displayed. Clean, focused layout matching the design vibe.',
   );
 
-  if (hasExternalData(a) && needsCron(a)) {
+  if (hasResolvedExternalData(a) && needsCron(a)) {
     lines.push(
       '- **Stale data** — If cached data is old, show warning: "Data may be outdated. Last updated: [time]."',
     );
   }
 
-  if (hasUserContent(a)) {
+  if (hasResolvedUserContent(a)) {
     lines.push(
       "- **Form validation** — Inline validation with helpful messages. Don't block submission for optional fields.",
     );
@@ -403,7 +413,7 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
   const lines = ['## Wiring Guide'];
 
   // Only include if there's meaningful wiring
-  if (tier === 'minimal' && !hasExternalData(a) && !hasUserContent(a)) {
+  if (tier === 'minimal' && !hasResolvedExternalData(a) && !hasResolvedUserContent(a)) {
     lines.push('');
     lines.push('### Data Flow');
     lines.push('- Static content rendered directly in HTML. No external data dependencies.');
@@ -414,7 +424,7 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
     return lines.join('\n');
   }
 
-  if (hasExternalData(a) || hasUserContent(a)) {
+  if (hasResolvedExternalData(a) || hasResolvedUserContent(a)) {
     lines.push('');
     lines.push('### Data Flow');
 
@@ -439,7 +449,7 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
   }
 
   // Trust Boundary
-  if (needsWorkerProxy(a) || hasUserContent(a)) {
+  if (needsWorkerProxy(a) || hasResolvedUserContent(a)) {
     lines.push('');
     lines.push('### Trust Boundary');
     lines.push('- Browser (public): renders UI, fetches from Worker or public APIs');
@@ -626,7 +636,7 @@ function sectionConfigChecklist(a: Partial<UserAnswers>, tier: ComplexityTier): 
 function sectionResearchNotes(a: Partial<UserAnswers>): string {
   const lines = ['## Agentic Research Notes', '> **For your AI coding assistant:**', '>'];
 
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     if (a.apiKnownName) {
       lines.push(`> **${sanitizeLine(a.apiKnownName)} verification:**`);
       lines.push('> - Confirm free tier limits and rate limits');
@@ -693,7 +703,7 @@ function sectionCSP(a: Partial<UserAnswers>): string {
 
   const connectSrc = needsWorkerProxy(a)
     ? "'self'"
-    : hasExternalData(a)
+    : hasResolvedExternalData(a)
       ? "'self' https:"
       : "'self'";
 
@@ -724,11 +734,10 @@ function sectionLocale(): string {
   ].join('\n');
 }
 
-function sectionBudgetMath(a: Partial<UserAnswers>): string {
-  if (!hasExternalData(a) && a.scale !== 'public') return '';
+function sectionBudgetMath(a: Partial<UserAnswers>, tier: ComplexityTier): string {
+  if (!hasResolvedExternalData(a) && a.scale !== 'public') return '';
 
   const freshness = resolveDataFreshness(a);
-  const tier = determineComplexity(a);
   const lines = ['## Free Tier Budget'];
 
   lines.push('');
@@ -747,7 +756,7 @@ function sectionBudgetMath(a: Partial<UserAnswers>): string {
   }
 
   // API calls
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     let apiEstimate = 'Varies';
     if (freshness === 'realtime') apiEstimate = 'Up to rate limit (varies by provider)';
     else if (freshness === 'hourly') apiEstimate = '~720/month';
@@ -792,7 +801,7 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
     lines.push(`${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint`);
   }
 
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     lines.push(
       `${step++}. **Connect data** — Fetch from ${needsWorkerProxy(a) ? 'Worker' : 'API'}, render real data`,
     );
@@ -861,7 +870,7 @@ function sectionPostDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): s
   const host = hostingName(a);
   lines.push(`- **Analytics:** ${host} provides built-in analytics (free).`);
 
-  if (hasExternalData(a)) {
+  if (hasResolvedExternalData(a)) {
     lines.push('- **API changes:** External APIs may change. Pin to API version if available.');
   }
 

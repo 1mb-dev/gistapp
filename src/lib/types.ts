@@ -24,13 +24,7 @@ export type Scale = 'personal' | 'friends' | 'public' | 'unsure';
 export type UserInputType = 'simple-form' | 'user-saves-data' | 'display-only';
 
 /** Hosting platform from Q7 */
-export type HostingPlatform =
-  | 'cloudflare-pages'
-  | 'github-pages'
-  | 'vercel'
-  | 'netlify'
-  | 'other'
-  | 'unsure';
+export type HostingPlatform = 'cloudflare-pages' | 'github-pages' | 'vercel' | 'netlify' | 'unsure';
 
 /** Design vibe from Q8 */
 export type DesignVibe = 'calm' | 'bold' | 'professional' | 'playful' | 'other';

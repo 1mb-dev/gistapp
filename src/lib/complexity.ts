@@ -78,7 +78,7 @@ export const tierDescriptions: Record<
 /** Determine if a Worker proxy is needed based on answers */
 export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
   const dataSource = answers.dataSource === 'unsure' ? 'no-external' : answers.dataSource;
-  if (dataSource !== 'public-api' && dataSource !== 'rss') {
+  if (dataSource !== 'public-api' && dataSource !== 'rss' && dataSource !== 'other') {
     return false;
   }
   // Public scale with API = likely needs caching proxy.

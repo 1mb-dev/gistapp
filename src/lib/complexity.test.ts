@@ -136,6 +136,14 @@ describe('needsWorkerProxy', () => {
   it('returns true for public scale + rss', () => {
     expect(needsWorkerProxy({ scale: 'public', dataSource: 'rss' })).toBe(true);
   });
+
+  it('returns true for public scale + other data source', () => {
+    expect(needsWorkerProxy({ scale: 'public', dataSource: 'other' })).toBe(true);
+  });
+
+  it('returns false for non-public scale + other data source', () => {
+    expect(needsWorkerProxy({ scale: 'personal', dataSource: 'other' })).toBe(false);
+  });
 });
 
 describe('needsCron', () => {

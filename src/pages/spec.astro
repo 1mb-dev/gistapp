@@ -122,13 +122,18 @@ import SiteHeader from '../components/SiteHeader.astro';
 </Base>
 
 <script>
-  import { generateSpec, generateFilename } from '../lib/generator';
+  import { generateSpec, generateFilename, extractSuggestedPrompt } from '../lib/generator';
   import type { UserAnswers } from '../lib/types';
   import { determineComplexity, tierDescriptions } from '../lib/complexity';
   import { track } from '../lib/insights';
 
   // --- Load answers from sessionStorage ---
-  const raw = sessionStorage.getItem('gist-answers');
+  let raw: string | null = null;
+  try {
+    raw = sessionStorage.getItem('gist-answers');
+  } catch {
+    // sessionStorage blocked (private browsing, storage disabled, etc.)
+  }
   const noAnswers = document.getElementById('no-answers')!;
   const specSection = document.getElementById('spec-preview-section')!;
   const whatsNext = document.getElementById('whats-next')!;
@@ -181,13 +186,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         specCode.textContent = spec;
 
         // Extract suggested prompt for the prompt preview
-        const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
         const promptBox = document.getElementById('prompt-box')!;
-        if (promptMatch) {
-          promptBox.textContent = promptMatch[1];
-        } else {
-          promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
-        }
+        promptBox.textContent = extractSuggestedPrompt(spec);
 
         // --- Actions ---
 
@@ -276,10 +276,10 @@ import SiteHeader from '../components/SiteHeader.astro';
             track('feedback', { feedback: feedback ?? '', tier });
             // Store locally as fallback
             try {
-              const raw = localStorage.getItem('gist-feedback') ?? '[]';
+              const feedbackRaw = localStorage.getItem('gist-feedback') ?? '[]';
               let existing: unknown[];
               try {
-                existing = JSON.parse(raw);
+                existing = JSON.parse(feedbackRaw);
                 if (!Array.isArray(existing)) existing = [];
               } catch {
                 console.warn('[spec] Corrupt feedback data, resetting');

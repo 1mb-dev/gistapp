@@ -1,15 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Mock KV namespace
+// Mock KV namespace with metadata support
 function createMockKV(): KVNamespace {
   const store = new Map<string, string>();
+  const metaStore = new Map<string, Record<string, unknown>>();
   return {
     get: vi.fn(async (key: string) => store.get(key) ?? null),
-    put: vi.fn(async (key: string, value: string) => {
-      store.set(key, value);
-    }),
+    put: vi.fn(
+      async (key: string, value: string, opts?: { metadata?: Record<string, unknown> }) => {
+        store.set(key, value);
+        if (opts?.metadata) metaStore.set(key, opts.metadata);
+      },
+    ),
     list: vi.fn(async ({ prefix }: { prefix: string }) => ({
-      keys: [...store.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })),
+      keys: [...store.keys()]
+        .filter((k) => k.startsWith(prefix))
+        .map((name) => ({ name, metadata: metaStore.get(name) ?? null })),
       list_complete: true,
       cacheStatus: null,
     })),
@@ -85,6 +91,34 @@ describe('POST /api/event', () => {
     const res = await postEvent(JSON.stringify({ event: 'spec_downloaded' }));
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://gist.1mb.dev');
   });
+
+  it('skips write on corrupt KV value', async () => {
+    const kv = createMockKV();
+    // Pre-populate the date-based key with corrupt data
+    const dateStr = new Date().toISOString().slice(0, 10);
+    await kv.put(`${dateStr}:spec_downloaded`, 'not-a-number');
+    (kv.put as ReturnType<typeof vi.fn>).mockClear();
+
+    const env = makeEnv(kv);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await postEvent(JSON.stringify({ event: 'spec_downloaded' }), env);
+
+    // increment should log the error and skip the write for the corrupt key
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Corrupt KV value'));
+    consoleSpy.mockRestore();
+  });
+
+  it('rejects float stepIndex as non-dimensional', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'question_completed', stepIndex: 3.5 }), env);
+
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    // Should have aggregate key but NOT the dimensional key with float index
+    expect(keys.some((k: string) => k.endsWith(':question_completed'))).toBe(true);
+    expect(keys.some((k: string) => k.includes('3.5'))).toBe(false);
+  });
 });
 
 describe('GET /api/stats', () => {
@@ -122,11 +156,23 @@ describe('GET /api/stats', () => {
 });
 
 describe('OPTIONS (preflight)', () => {
-  it('returns 204 with CORS headers', async () => {
+  it('returns 204 with CORS headers for /api/event', async () => {
     const request = new Request('https://worker.test/api/event', { method: 'OPTIONS' });
     const res = await worker.fetch(request, makeEnv());
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://gist.1mb.dev');
+  });
+
+  it('returns 204 with CORS headers for /api/stats', async () => {
+    const request = new Request('https://worker.test/api/stats', { method: 'OPTIONS' });
+    const res = await worker.fetch(request, makeEnv());
+    expect(res.status).toBe(204);
+  });
+
+  it('returns 404 for OPTIONS on unknown path', async () => {
+    const request = new Request('https://worker.test/unknown', { method: 'OPTIONS' });
+    const res = await worker.fetch(request, makeEnv());
+    expect(res.status).toBe(404);
   });
 });
 

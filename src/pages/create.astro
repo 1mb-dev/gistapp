@@ -543,7 +543,16 @@ import SiteHeader from '../components/SiteHeader.astro';
       sessionStorage.setItem('gist-answers', JSON.stringify(answers));
       sessionStorage.removeItem('gist-progress');
     } catch {
-      console.error('[create] Failed to save answers for spec page');
+      // Storage failed — show error instead of navigating to a blank spec page
+      const genText = generatingSection.querySelector('.generating-text');
+      const genDetail = generatingSection.querySelector('.generating-detail');
+      const spinner = generatingSection.querySelector('.spinner');
+      if (spinner) (spinner as HTMLElement).hidden = true;
+      if (genText) genText.textContent = 'Couldn\u2019t save your answers';
+      if (genDetail)
+        genDetail.textContent =
+          'Your browser blocked storage access. Try disabling private browsing or clearing site data, then try again.';
+      return;
     }
 
     // Navigate to spec preview after brief animation

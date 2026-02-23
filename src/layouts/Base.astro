@@ -14,7 +14,7 @@ const {
 const siteName = 'Gist';
 const fullTitle = title.includes(siteName) ? title : `${title} — ${siteName}`;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImageURL = new URL('/og-image.svg', Astro.site);
+const ogImageURL = new URL('/og-image.png', Astro.site);
 ---
 
 <!doctype html>

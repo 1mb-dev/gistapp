@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { UserAnswers } from './types';
-import { generateSpec, generateFilename } from './generator';
+import { generateSpec, generateFilename, extractSuggestedPrompt } from './generator';
 
 /** Minimal valid answers for a simple personal app */
 const minimalAnswers: Partial<UserAnswers> = {
@@ -161,5 +161,20 @@ describe('generateFilename', () => {
 
   it('strips unicode from title', () => {
     expect(generateFilename({ title: 'Café Tracker' })).toBe('caf-tracker-gist-spec-v1.0.md');
+  });
+});
+
+describe('extractSuggestedPrompt', () => {
+  it('extracts prompt from a generated spec', () => {
+    const spec = generateSpec(minimalAnswers);
+    const prompt = extractSuggestedPrompt(spec);
+    expect(prompt).toContain('Here is my app specification');
+    expect(prompt).not.toBe('See the "Suggested Prompt" section in your spec.');
+  });
+
+  it('returns fallback when section is missing', () => {
+    expect(extractSuggestedPrompt('# No prompt here')).toBe(
+      'See the "Suggested Prompt" section in your spec.',
+    );
   });
 });
