@@ -1,4 +1,4 @@
-import type { QuestionDef, UserAnswers } from './types';
+import type { QuestionDef, UserAnswers, Persona, PersonaOverlay } from './types';
 
 /** Returns true if the user selected an external data source */
 function hasExternalData(answers: Partial<UserAnswers>): boolean {
@@ -80,6 +80,7 @@ export const questions: QuestionDef[] = [
       { id: 'phone', label: 'Phone first', detail: 'Optimized for mobile — great for daily apps' },
       { id: 'desktop', label: 'Desktop first', detail: 'Best on a larger screen — dashboards, tools' },
       { id: 'both', label: 'Both', detail: 'Works equally well on phone and desktop' },
+      { id: 'unsure', label: "I'm not sure", detail: "We'll make it work everywhere" },
     ],
   },
 
@@ -95,6 +96,7 @@ export const questions: QuestionDef[] = [
       { id: 'static-file', label: 'Static file', detail: 'A JSON, CSV, or data file you provide' },
       { id: 'no-external', label: 'No external data', detail: 'Calculator, portfolio, landing page, tool' },
       { id: 'user-content', label: 'Users create the content', detail: 'Forms, submissions, user-generated' },
+      { id: 'unsure', label: "I'm not sure", detail: "We'll keep things flexible" },
       { id: 'other', label: 'Other', freeInput: true, detail: 'Describe your data source' },
     ],
   },
@@ -107,10 +109,11 @@ export const questions: QuestionDef[] = [
     responseMode: 'pick-one',
     condition: hasExternalData,
     options: [
-      { id: 'realtime', label: 'Real-time', detail: 'Fetch fresh data on each request — stock tickers, live scores' },
-      { id: 'hourly', label: 'Hourly', detail: 'Updates every hour — cron job + cache keeps it fast' },
-      { id: 'daily', label: 'Daily or less', detail: 'Updates once a day — bake into the build' },
+      { id: 'realtime', label: 'Real-time', detail: 'Fetch fresh data on each request — counts against rate limits (most APIs: 500–1K/day free)' },
+      { id: 'hourly', label: 'Hourly', detail: 'Updates every hour (~720 API calls/month) — cron job + cache keeps it fast' },
+      { id: 'daily', label: 'Daily or less', detail: 'Updates once a day (~30 API calls/month) — bake into the build' },
       { id: 'static', label: 'Never', detail: 'Data doesn\'t change — fetch once, cache forever' },
+      { id: 'unsure', label: "I'm not sure", detail: "We'll recommend a safe default" },
     ],
   },
 
@@ -123,7 +126,7 @@ export const questions: QuestionDef[] = [
     options: [
       { id: 'personal', label: 'Just me', detail: 'Personal tool — simplest setup' },
       { id: 'friends', label: 'Me and friends', detail: 'Under 100 users — still simple' },
-      { id: 'public', label: 'Public', detail: '100+ users — may need caching and rate limits' },
+      { id: 'public', label: 'Public', detail: '100+ users — may need caching (most free CDNs handle this fine)' },
       { id: 'unsure', label: 'I\'m not sure', detail: 'We\'ll recommend a setup that can grow' },
     ],
   },
@@ -171,10 +174,10 @@ export const questions: QuestionDef[] = [
     subtitle: 'All options are free tier. Pick what you know, or let your AI assistant decide.',
     responseMode: 'pick-one',
     options: [
-      { id: 'cloudflare-pages', label: 'Cloudflare Pages', detail: 'Unlimited builds, global CDN, atomic deploys' },
-      { id: 'github-pages', label: 'GitHub Pages', detail: 'Simple, free, great for static sites' },
-      { id: 'vercel', label: 'Vercel', detail: '100 GB bandwidth/month, great DX' },
-      { id: 'netlify', label: 'Netlify', detail: '100 GB bandwidth/month, form handling built in' },
+      { id: 'cloudflare-pages', label: 'Cloudflare Pages', detail: 'Free: unlimited bandwidth, 500 builds/month, global CDN' },
+      { id: 'github-pages', label: 'GitHub Pages', detail: 'Free: 100 GB bandwidth/month, simple deploy from repo' },
+      { id: 'vercel', label: 'Vercel', detail: 'Free: 100 GB bandwidth/month, great developer experience' },
+      { id: 'netlify', label: 'Netlify', detail: 'Free: 100 GB bandwidth/month, form handling built in' },
       { id: 'unsure', label: 'I\'m not sure', detail: 'The spec will include a comparison for your AI assistant' },
     ],
   },
@@ -216,6 +219,7 @@ export const questions: QuestionDef[] = [
       { id: 'single', label: 'One screen', detail: 'Single-purpose — the whole app fits on one page' },
       { id: 'few', label: 'A few pages', detail: '2-5 pages with navigation' },
       { id: 'many', label: 'Many pages', detail: 'Content site, documentation, blog' },
+      { id: 'unsure', label: "I'm not sure", detail: "We'll start with one page" },
     ],
   },
 
@@ -237,6 +241,120 @@ export const questions: QuestionDef[] = [
 /** Get the subset of questions that should be shown given current answers */
 export function getVisibleQuestions(answers: Partial<UserAnswers>): QuestionDef[] {
   return questions.filter(q => !q.condition || q.condition(answers));
+}
+
+/** Persona overlay map: jargon-free text for new-builder persona */
+const newBuilderOverlays: Record<string, PersonaOverlay> = {
+  'data-source': {
+    title: 'Where does your app get its information?',
+    subtitle: 'Most apps show information from somewhere. Pick what fits.',
+    options: {
+      'public-api': { label: 'From the internet', detail: 'Weather, news, stock prices, maps, etc.' },
+      'rss': { label: 'From a blog or news feed', detail: 'Blog posts, podcasts, news updates' },
+      'static-file': { label: 'From a file I provide', detail: 'A spreadsheet, list, or data file you already have' },
+      'no-external': { label: 'No outside information', detail: 'Calculator, portfolio, landing page, tool' },
+      'user-content': { label: 'People using the app add it', detail: 'Forms, submissions, user-generated content' },
+      'unsure': { label: "I'm not sure", detail: "That's okay — we'll keep things flexible" },
+    },
+  },
+  'data-freshness': {
+    title: 'How often does the information update?',
+    subtitle: 'This helps us decide how your app fetches data.',
+    autoDefault: 'daily',
+    options: {
+      'realtime': { label: 'Constantly', detail: 'Always showing the latest — like a live score or stock ticker' },
+      'hourly': { label: 'Every hour', detail: 'Refreshes in the background so it stays current' },
+      'daily': { label: 'Once a day or less', detail: 'Updates occasionally — news, blog posts, daily stats' },
+      'static': { label: 'It never changes', detail: 'The information stays the same forever' },
+      'unsure': { label: "I'm not sure", detail: "We'll pick a safe default (once a day)" },
+    },
+  },
+  'device-target': {
+    title: 'Where will people use your app?',
+    autoDefault: 'both',
+    options: {
+      'phone': { label: 'On their phone', detail: 'Designed for small screens first' },
+      'desktop': { label: 'On a computer', detail: 'Designed for larger screens — dashboards, tools' },
+      'both': { label: 'Both phone and computer', detail: 'Works great on any screen size' },
+      'unsure': { label: "I'm not sure", detail: "We'll make it work everywhere" },
+    },
+  },
+  'scale': {
+    autoDefault: 'personal',
+    options: {
+      'personal': { label: 'Just me', detail: 'A personal tool — simplest setup' },
+      'friends': { label: 'Me and a few friends', detail: 'A small group — still simple' },
+      'public': { label: 'Anyone on the internet', detail: 'Open to everyone' },
+      'unsure': { label: "I'm not sure yet", detail: "We'll start simple — you can scale up later" },
+    },
+  },
+  'hosting': {
+    title: 'Where should your app live on the internet?',
+    subtitle: 'All options are free. If you don\'t know, we\'ll pick one for you.',
+    autoDefault: 'unsure',
+  },
+  'page-count': {
+    title: 'How many screens does your app need?',
+    subtitle: 'Think of screens as separate pages people can visit.',
+    autoDefault: 'single',
+    options: {
+      'single': { label: 'Just one screen', detail: 'Everything fits on a single page' },
+      'few': { label: 'A few screens', detail: '2–5 pages people can navigate between' },
+      'many': { label: 'Lots of screens', detail: 'Many pages — like a blog or documentation site' },
+      'unsure': { label: "I'm not sure", detail: "We'll start with one page — you can add more later" },
+    },
+  },
+  'usage-frequency': {
+    title: 'How often will people use your app?',
+    options: {
+      'daily': { label: 'Every day', detail: 'A daily habit — like checking the weather' },
+      'weekly': { label: 'Once a week', detail: 'Checked occasionally throughout the week' },
+      'event-driven': { label: 'When they need it', detail: 'Used for a specific task — a calculator, converter' },
+      'one-time': { label: 'Just once', detail: 'Used once and done — an event page, signup form' },
+    },
+  },
+  'info-density': {
+    title: 'How much should your app show at once?',
+    options: {
+      'hero': { label: 'One big thing', detail: 'A single number or message, easy to glance at' },
+      'organized': { label: 'A few things, neatly arranged', detail: 'Cards or sections with clear labels' },
+      'dense': { label: 'Lots of information', detail: 'Tables, charts, or data-heavy displays' },
+    },
+  },
+};
+
+/** Resolve a question definition with persona-specific overlays */
+export function resolveQuestion(q: QuestionDef, persona?: Persona): QuestionDef {
+  if (persona !== 'new-builder') return q;
+
+  const overlay = newBuilderOverlays[q.id];
+  if (!overlay) return q;
+
+  const resolved: QuestionDef = {
+    ...q,
+    title: overlay.title ?? q.title,
+    subtitle: overlay.subtitle ?? q.subtitle,
+  };
+
+  if (overlay.options && q.options) {
+    resolved.options = q.options.map(opt => {
+      const ov = overlay.options![opt.id];
+      if (!ov) return opt;
+      return {
+        ...opt,
+        label: ov.label ?? opt.label,
+        detail: ov.detail ?? opt.detail,
+      };
+    });
+  }
+
+  return resolved;
+}
+
+/** Get the auto-default option ID for a question/persona pair */
+export function getAutoDefault(questionId: string, persona?: Persona): string | undefined {
+  if (persona !== 'new-builder') return undefined;
+  return newBuilderOverlays[questionId]?.autoDefault;
 }
 
 /** Map a question option ID to the corresponding UserAnswers key and value */

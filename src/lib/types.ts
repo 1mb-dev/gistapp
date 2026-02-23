@@ -11,10 +11,11 @@ export type DataSource =
   | 'static-file'
   | 'no-external'
   | 'user-content'
-  | 'other';
+  | 'other'
+  | 'unsure';
 
 /** Data freshness from Q4 */
-export type DataFreshness = 'realtime' | 'hourly' | 'daily' | 'static';
+export type DataFreshness = 'realtime' | 'hourly' | 'daily' | 'static' | 'unsure';
 
 /** Expected scale from Q5 */
 export type Scale = 'personal' | 'friends' | 'public' | 'unsure';
@@ -43,7 +44,7 @@ export type DesignVibe =
 export type InfoDensity = 'hero' | 'organized' | 'dense';
 
 /** Page count category from Q9 */
-export type PageCount = 'single' | 'few' | 'many';
+export type PageCount = 'single' | 'few' | 'many' | 'unsure';
 
 /** Offline preference from Q10 */
 export type OfflineSupport = 'yes' | 'no' | 'unsure';
@@ -52,7 +53,7 @@ export type OfflineSupport = 'yes' | 'no' | 'unsure';
 export type UsageFrequency = 'daily' | 'weekly' | 'event-driven' | 'one-time';
 
 /** Device preference from Q2 */
-export type DeviceTarget = 'phone' | 'desktop' | 'both';
+export type DeviceTarget = 'phone' | 'desktop' | 'both' | 'unsure';
 
 /** Complete set of user answers driving spec generation */
 export interface UserAnswers {
@@ -135,6 +136,14 @@ export interface QuestionField {
   placeholder: string;
   required?: boolean;
   multiline?: boolean;
+}
+
+/** Per-question text overrides for a persona */
+export interface PersonaOverlay {
+  title?: string;
+  subtitle?: string;
+  options?: Record<string, { label?: string; detail?: string }>;
+  autoDefault?: string;
 }
 
 /** Generated spec metadata */
