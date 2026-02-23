@@ -23,12 +23,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta name="theme-color" content="#f6f5f0" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)" />
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';" />
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" as="style" />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self';" />
 
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
@@ -45,6 +40,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
   <body>
     <a href="#main-content" class="skip-nav">Skip to main content</a>
     <slot />
+    <script src="/register-sw.js" defer></script>
   </body>
 </html>
 
