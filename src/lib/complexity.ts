@@ -7,7 +7,12 @@ import type { ComplexityTier, UserAnswers } from './types';
  * This prevents the dry-run problem: every app getting maximum infrastructure.
  */
 export function determineComplexity(answers: Partial<UserAnswers>): ComplexityTier {
-  const { dataSource, dataFreshness, scale, pageCount, userInputType } = answers;
+  // Treat 'unsure' as conservative defaults
+  const dataSource = answers.dataSource === 'unsure' ? 'no-external' : answers.dataSource;
+  const dataFreshness = answers.dataFreshness === 'unsure' ? 'daily' : answers.dataFreshness;
+  const pageCount = answers.pageCount === 'unsure' ? 'single' : answers.pageCount;
+  const scale = answers.scale;
+  const userInputType = answers.userInputType;
 
   // Full tier: multi-page + keyed API + public + cron
   if (pageCount === 'many' && scale === 'public') {
@@ -73,9 +78,8 @@ export const tierDescriptions: Record<ComplexityTier, {
 
 /** Determine if a Worker proxy is needed based on answers */
 export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
-  // If API is explicitly known to be free/keyless, no proxy needed
-  // This is a heuristic — the spec will note research is needed if unsure
-  if (answers.dataSource !== 'public-api' && answers.dataSource !== 'rss') {
+  const dataSource = answers.dataSource === 'unsure' ? 'no-external' : answers.dataSource;
+  if (dataSource !== 'public-api' && dataSource !== 'rss') {
     return false;
   }
   // Public scale with API = likely needs caching proxy
@@ -87,11 +91,13 @@ export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
 
 /** Determine if cron/scheduled updates are needed */
 export function needsCron(answers: Partial<UserAnswers>): boolean {
-  return answers.dataFreshness === 'hourly' && answers.scale !== 'personal';
+  const freshness = answers.dataFreshness === 'unsure' ? 'daily' : answers.dataFreshness;
+  return freshness === 'hourly' && answers.scale !== 'personal';
 }
 
 /** Determine if PWA features should be recommended */
 export function shouldRecommendPWA(answers: Partial<UserAnswers>): boolean {
+  const device = answers.deviceTarget === 'unsure' ? 'both' : answers.deviceTarget;
   return answers.usageFrequency === 'daily' &&
-    (answers.deviceTarget === 'phone' || answers.deviceTarget === 'both');
+    (device === 'phone' || device === 'both');
 }

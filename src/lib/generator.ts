@@ -18,14 +18,18 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionTitle(answers));
   sections.push(sectionMeta(meta));
   sections.push(sectionSummary(answers, tier));
+  sections.push(sectionCustomizations(answers));
   sections.push(sectionIdea(answers));
   sections.push(sectionArchitecture(answers, tier));
-  sections.push(sectionDesign(answers));
+  sections.push(sectionDesign(answers, tier));
   sections.push(sectionUXStates(answers, tier));
   sections.push(sectionWiringGuide(answers, tier));
   sections.push(sectionWebStandards(answers, tier));
+  sections.push(sectionCSP(answers));
   sections.push(sectionAccessibility(answers));
+  sections.push(sectionLocale());
   sections.push(sectionConfigChecklist(answers, tier));
+  sections.push(sectionBudgetMath(answers));
 
   if (hasResearchNotes(answers)) {
     sections.push(sectionResearchNotes(answers));
@@ -52,8 +56,21 @@ export function generateFilename(answers: Partial<UserAnswers>): string {
 
 // --- Helpers ---
 
+function resolveDataSource(a: Partial<UserAnswers>): string | undefined {
+  return a.dataSource === 'unsure' ? 'no-external' : a.dataSource;
+}
+
+function resolveDataFreshness(a: Partial<UserAnswers>): string | undefined {
+  return a.dataFreshness === 'unsure' ? 'daily' : a.dataFreshness;
+}
+
+function resolveDeviceTarget(a: Partial<UserAnswers>): string | undefined {
+  return a.deviceTarget === 'unsure' ? 'both' : a.deviceTarget;
+}
+
 function hasExternalData(a: Partial<UserAnswers>): boolean {
-  return a.dataSource === 'public-api' || a.dataSource === 'rss' || a.dataSource === 'static-file' || a.dataSource === 'other';
+  const src = resolveDataSource(a);
+  return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
 }
 
 function hasUserContent(a: Partial<UserAnswers>): boolean {
@@ -143,8 +160,17 @@ function sectionIdea(a: Partial<UserAnswers>): string {
   ];
 
   if (a.audience) lines.push(`- Audience: ${a.audience}`);
-  if (a.usageFrequency) lines.push(`- Usage pattern: ${a.usageFrequency}${a.deviceTarget ? `, ${a.deviceTarget}` : ''}`);
+  if (a.usageFrequency) {
+    const deviceLabel = a.deviceTarget === 'unsure' ? 'both (default)' : a.deviceTarget;
+    lines.push(`- Usage pattern: ${a.usageFrequency}${deviceLabel ? `, ${deviceLabel}` : ''}`);
+  }
   if (a.headlineValue) lines.push(`- Headline value: ${a.headlineValue}`);
+  if (a.pageCount === 'unsure') {
+    lines.push('- Page count: single (default — you selected "I\'m not sure")');
+  }
+  if (a.dataSource === 'unsure') {
+    lines.push('- Data source: none assumed (you selected "I\'m not sure" — the spec keeps things flexible)');
+  }
 
   return lines.join('\n');
 }
@@ -169,8 +195,12 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
         hourly: 'Hourly (cron job + cache)',
         daily: 'Daily or less (bake into build or cache with long TTL)',
         static: 'Static (fetch once, cache indefinitely)',
+        unsure: 'Daily or less (safe default — bake into build or cache with long TTL)',
       };
       lines.push(`- Update frequency: ${freshnessMap[a.dataFreshness]}`);
+      if (a.dataFreshness === 'unsure') {
+        lines.push('  - > *You selected "I\'m not sure" — we defaulted to daily updates. This is the safest choice: low API usage, simple caching, easy to change later.*');
+      }
     }
 
     if (needsCron(a)) {
@@ -264,7 +294,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   return lines.join('\n');
 }
 
-function sectionDesign(a: Partial<UserAnswers>): string {
+function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   const lines = [
     '## Design Decisions',
     `- Vibe: ${vibeName(a)}`,
@@ -434,6 +464,8 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
   lines.push('| `og-image.png` | 1200x630: app title on branded gradient |');
   lines.push('| `robots.txt` | `User-agent: * Allow: /` |');
   lines.push('| `.gitignore` | `.env`, `.env.*`, `*.local`, `node_modules/`, `dist/` |');
+  lines.push('| `404.html` | Custom 404 page with navigation back to home |');
+  lines.push('| `humans.txt` | Credits: team, tools, site info ([humanstxt.org](http://humanstxt.org/)) |');
 
   if (needsWorkerProxy(a)) {
     lines.push('| `.env.example` | Placeholder for API keys (never real values) |');
@@ -443,6 +475,12 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
   if (tier !== 'minimal') {
     lines.push('| `sitemap.xml` | List of pages |');
   }
+
+  lines.push('');
+  lines.push('### Performance Defaults');
+  lines.push('- `<script defer>` on all JS (non-blocking load)');
+  lines.push('- `loading="lazy"` on all images below the fold');
+  lines.push('- Explicit `width` and `height` on all `<img>` elements (prevents layout shift)');
 
   return lines.join('\n');
 }
@@ -460,8 +498,12 @@ function sectionAccessibility(a: Partial<UserAnswers>): string {
     '- Responsive: mobile-first CSS, works from 320px up',
   ];
 
-  if (a.deviceTarget === 'phone' || a.deviceTarget === 'both') {
+  const device = resolveDeviceTarget(a);
+  if (device === 'phone' || device === 'both') {
     lines.push('- Mobile-first layout with comfortable touch spacing');
+  }
+  if (a.deviceTarget === 'unsure') {
+    lines.push('  - > *You selected "I\'m not sure" — we defaulted to supporting both phone and desktop.*');
   }
 
   return lines.join('\n');
@@ -542,6 +584,92 @@ function sectionResearchNotes(a: Partial<UserAnswers>): string {
     lines.push('> - This is a daily mobile app — strong PWA candidate');
     lines.push('> - Minimum: `manifest.json` with name, icons, theme_color, display: standalone');
     lines.push('> - Nice-to-have: service worker for offline caching of last-known data');
+  }
+
+  return lines.join('\n');
+}
+
+function sectionCustomizations(a: Partial<UserAnswers>): string {
+  if (!a.stackCustomizations) return '';
+  return [
+    '## User Customization Notes',
+    `> The user requested the following customizations. Incorporate these preferences where possible:`,
+    `> ${a.stackCustomizations}`,
+  ].join('\n');
+}
+
+function sectionCSP(a: Partial<UserAnswers>): string {
+  const lines = ['## Content Security Policy'];
+  lines.push('');
+  lines.push('Add this `<meta>` tag to your `<head>`:');
+  lines.push('');
+
+  const connectSrc = needsWorkerProxy(a)
+    ? "'self'"
+    : hasExternalData(a)
+      ? "'self' https:"
+      : "'self'";
+
+  lines.push('```html');
+  lines.push('<meta http-equiv="Content-Security-Policy" content="');
+  lines.push(`  default-src 'self';`);
+  lines.push(`  style-src 'self' 'unsafe-inline';`);
+  lines.push(`  img-src 'self' data:;`);
+  lines.push(`  connect-src ${connectSrc};`);
+  lines.push('">');
+  lines.push('```');
+  lines.push('');
+  lines.push('> Tighten `connect-src` after you know exact API domains (e.g., `connect-src \'self\' https://api.example.com`).');
+
+  return lines.join('\n');
+}
+
+function sectionLocale(): string {
+  return [
+    '## Locale & Internationalization',
+    '- `<html lang="en">` on the root element',
+    '- Use `Intl.DateTimeFormat()` for all date/time formatting',
+    '- Use `Intl.NumberFormat()` for all number formatting',
+    '- Default to metric units where applicable',
+    '- Never concatenate translated strings — use template literals or `Intl.MessageFormat` patterns',
+  ].join('\n');
+}
+
+function sectionBudgetMath(a: Partial<UserAnswers>): string {
+  if (!hasExternalData(a) && a.scale !== 'public') return '';
+
+  const freshness = resolveDataFreshness(a);
+  const tier = determineComplexity(a);
+  const lines = ['## Free Tier Budget'];
+
+  lines.push('');
+  lines.push('| Resource | Free Tier Limit | Estimated Usage |');
+  lines.push('|---|---|---|');
+
+  // Hosting bandwidth
+  const hosting = a.hosting ?? 'unsure';
+  if (hosting === 'cloudflare-pages' || hosting === 'unsure') {
+    lines.push('| Cloudflare Pages bandwidth | Unlimited | N/A |');
+    lines.push('| Cloudflare Pages builds | 500/month | ~30 (1/day with CI) |');
+  } else if (hosting === 'vercel' || hosting === 'netlify') {
+    lines.push(`| ${hostingName(a)} bandwidth | 100 GB/month | Well under limit for most apps |`);
+  } else if (hosting === 'github-pages') {
+    lines.push('| GitHub Pages bandwidth | 100 GB/month | Well under limit for most apps |');
+  }
+
+  // API calls
+  if (hasExternalData(a)) {
+    let apiEstimate = 'Varies';
+    if (freshness === 'realtime') apiEstimate = 'Up to rate limit (varies by provider)';
+    else if (freshness === 'hourly') apiEstimate = '~720/month';
+    else if (freshness === 'daily' || freshness === 'static') apiEstimate = '~30/month';
+    lines.push(`| API calls | Varies by provider | ${apiEstimate} |`);
+  }
+
+  // KV for full tier
+  if (tier === 'full') {
+    lines.push('| Cloudflare KV reads | 100K/day | Well under limit |');
+    lines.push('| Cloudflare KV writes | 1K/day | ~24 (hourly cron) |');
   }
 
   return lines.join('\n');
