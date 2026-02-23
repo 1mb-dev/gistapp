@@ -35,8 +35,26 @@ function today(): string {
 /** Increment a KV counter. Read-increment-write is not atomic —
  *  at Gist's traffic (~tens of events/day) collisions are negligible. */
 async function increment(kv: KVNamespace, key: string): Promise<void> {
-  const current = Number(await kv.get(key)) || 0;
-  await kv.put(key, String(current + 1));
+  const raw = await kv.get(key);
+  const current = Number(raw);
+  if (raw !== null && isNaN(current)) {
+    console.error(`Corrupt KV value for key "${key}": "${raw}"`);
+  }
+  await kv.put(key, String((isNaN(current) ? 0 : current) + 1));
+}
+
+/** Constant-time string comparison to prevent timing attacks on token auth. */
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  // XOR all bytes; if any differ, result is non-zero
+  let mismatch = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    mismatch |= bufA[i] ^ bufB[i];
+  }
+  return mismatch === 0;
 }
 
 /** Validate dimensional values to prevent KV key injection.
@@ -117,7 +135,7 @@ async function handleEvent(request: Request, env: Env): Promise<Response> {
 
 async function handleStats(request: Request, env: Env): Promise<Response> {
   const auth = request.headers.get('Authorization');
-  if (!auth || auth !== `Bearer ${env.ADMIN_TOKEN}`) {
+  if (!auth || !timingSafeCompare(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
     return corsResponse('Unauthorized', 401);
   }
 

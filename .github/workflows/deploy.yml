@@ -55,6 +55,8 @@ jobs:
     needs: test
     if: ${{ !inputs.pages_only }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 

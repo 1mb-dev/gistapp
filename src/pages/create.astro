@@ -113,13 +113,24 @@ import SiteHeader from '../components/SiteHeader.astro';
   import { track } from '../lib/insights';
 
   // --- State ---
-  const saved = sessionStorage.getItem('gist-progress');
+  const saved = (() => {
+    try {
+      return sessionStorage.getItem('gist-progress');
+    } catch {
+      return null;
+    }
+  })();
   const answers: Partial<UserAnswers> = saved
     ? (() => {
         try {
           return JSON.parse(saved);
         } catch {
-          sessionStorage.removeItem('gist-progress');
+          try {
+            sessionStorage.removeItem('gist-progress');
+          } catch {
+            /* storage inaccessible */
+          }
+          console.warn('[create] Corrupt progress data cleared');
           return {};
         }
       })()
@@ -128,7 +139,11 @@ import SiteHeader from '../components/SiteHeader.astro';
   let currentIndex = 0;
 
   function saveProgress() {
-    sessionStorage.setItem('gist-progress', JSON.stringify(answers));
+    try {
+      sessionStorage.setItem('gist-progress', JSON.stringify(answers));
+    } catch {
+      /* storage full or inaccessible — progress won't persist across reloads */
+    }
   }
 
   // --- DOM refs ---
@@ -524,8 +539,12 @@ import SiteHeader from '../components/SiteHeader.astro';
     generatingSection.hidden = false;
 
     // Store answers for spec page, clear progress
-    sessionStorage.setItem('gist-answers', JSON.stringify(answers));
-    sessionStorage.removeItem('gist-progress');
+    try {
+      sessionStorage.setItem('gist-answers', JSON.stringify(answers));
+      sessionStorage.removeItem('gist-progress');
+    } catch {
+      console.error('[create] Failed to save answers for spec page');
+    }
 
     // Navigate to spec preview after brief animation
     setTimeout(() => {

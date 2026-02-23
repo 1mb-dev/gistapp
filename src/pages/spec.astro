@@ -153,133 +153,161 @@ import SiteHeader from '../components/SiteHeader.astro';
     }
 
     if (answers) {
-      const spec = generateSpec(answers);
-      const filename = generateFilename(answers);
-      const tier = determineComplexity(answers);
-      const tierInfo = tierDescriptions[tier];
+      try {
+        const spec = generateSpec(answers);
+        const filename = generateFilename(answers);
+        const tier = determineComplexity(answers);
+        const tierInfo = tierDescriptions[tier as keyof typeof tierDescriptions];
 
-      // Show sections
-      specSection.hidden = false;
-      whatsNext.hidden = false;
-      feedbackSection.hidden = false;
-      startOver.hidden = false;
+        // Show sections
+        specSection.hidden = false;
+        whatsNext.hidden = false;
+        feedbackSection.hidden = false;
+        startOver.hidden = false;
 
-      // Populate spec title and meta
-      const specTitle = document.getElementById('spec-title')!;
-      specTitle.textContent = `${answers.title ?? 'Your'} spec`;
+        // Populate spec title and meta
+        const specTitle = document.getElementById('spec-title')!;
+        specTitle.textContent = `${answers.title ?? 'Your'} spec`;
 
-      const metaLine = document.getElementById('spec-meta-line')!;
-      metaLine.textContent = `${tierInfo.label} tier \u00b7 ${tierInfo.framework}`;
+        const metaLine = document.getElementById('spec-meta-line')!;
+        metaLine.textContent = `${tierInfo.label} tier \u00b7 ${tierInfo.framework}`;
 
-      // Filename
-      const filenameEl = document.getElementById('spec-filename')!;
-      filenameEl.textContent = filename;
+        // Filename
+        const filenameEl = document.getElementById('spec-filename')!;
+        filenameEl.textContent = filename;
 
-      // Spec body
-      const specCode = document.getElementById('spec-code')!;
-      specCode.textContent = spec;
+        // Spec body
+        const specCode = document.getElementById('spec-code')!;
+        specCode.textContent = spec;
 
-      // Extract suggested prompt for the prompt preview
-      const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
-      const promptBox = document.getElementById('prompt-box')!;
-      if (promptMatch) {
-        promptBox.textContent = promptMatch[1];
-      } else {
-        promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
-      }
-
-      // --- Actions ---
-
-      function downloadSpec(): void {
-        track('spec_downloaded', { tier });
-        const blob = new Blob([spec], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-
-      async function copySpec(button: HTMLButtonElement): Promise<void> {
-        track('spec_copied', { tier });
-        try {
-          await navigator.clipboard.writeText(spec);
-          const original = button.textContent;
-          button.textContent = 'Copied!';
-          setTimeout(() => {
-            button.textContent = original;
-          }, 2000);
-        } catch {
-          // Fallback: select the spec text
-          const range = document.createRange();
-          range.selectNodeContents(specCode);
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(range);
+        // Extract suggested prompt for the prompt preview
+        const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
+        const promptBox = document.getElementById('prompt-box')!;
+        if (promptMatch) {
+          promptBox.textContent = promptMatch[1];
+        } else {
+          promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
         }
-      }
 
-      // Download buttons
-      document.getElementById('btn-download')!.addEventListener('click', downloadSpec);
-      document.getElementById('btn-download-2')!.addEventListener('click', downloadSpec);
+        // --- Actions ---
 
-      // Copy buttons
-      const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
-      const btnCopy2 = document.getElementById('btn-copy-2') as HTMLButtonElement;
-      btnCopy.addEventListener('click', () => copySpec(btnCopy));
-      btnCopy2.addEventListener('click', () => copySpec(btnCopy2));
-
-      // Copy prompt
-      const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
-      btnCopyPrompt.addEventListener('click', async () => {
-        track('prompt_copied', { tier });
-        try {
-          await navigator.clipboard.writeText(promptBox.textContent ?? '');
-          const original = btnCopyPrompt.textContent;
-          btnCopyPrompt.textContent = 'Copied!';
-          setTimeout(() => {
-            btnCopyPrompt.textContent = original;
-          }, 2000);
-        } catch {
-          // Fallback: select the text so user can Cmd+C / Ctrl+C
-          const range = document.createRange();
-          range.selectNodeContents(promptBox);
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-          btnCopyPrompt.textContent = 'Select and copy manually';
-          setTimeout(() => {
-            btnCopyPrompt.textContent = 'Copy prompt';
-          }, 3000);
-        }
-      });
-
-      // Feedback
-      const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
-      const feedbackThanks = document.getElementById('feedback-thanks')!;
-
-      feedbackBtns.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const feedback = btn.dataset.feedback;
-          track('feedback', { feedback: feedback ?? '', tier });
-          // Store locally as fallback
+        function downloadSpec(): void {
+          track('spec_downloaded', { tier });
           try {
-            const existing = JSON.parse(localStorage.getItem('gist-feedback') ?? '[]');
-            existing.push({ feedback, timestamp: new Date().toISOString(), tier });
-            localStorage.setItem('gist-feedback', JSON.stringify(existing));
-          } catch {
-            // Reset corrupt data so future feedback can be stored
-            localStorage.removeItem('gist-feedback');
+            const blob = new Blob([spec], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error('[spec] Download failed:', err);
           }
+        }
 
-          feedbackBtns.forEach((b) => {
-            b.disabled = true;
-          });
-          feedbackThanks.hidden = false;
+        async function copySpec(button: HTMLButtonElement): Promise<void> {
+          track('spec_copied', { tier });
+          const original = button.textContent;
+          try {
+            await navigator.clipboard.writeText(spec);
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+              button.textContent = original;
+            }, 2000);
+          } catch {
+            // Fallback: select the spec text so user can Cmd+C / Ctrl+C
+            const range = document.createRange();
+            range.selectNodeContents(specCode);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+            button.textContent = 'Selected \u2014 press Ctrl+C to copy';
+            setTimeout(() => {
+              button.textContent = original;
+            }, 3000);
+          }
+        }
+
+        // Download buttons
+        document.getElementById('btn-download')!.addEventListener('click', downloadSpec);
+        document.getElementById('btn-download-2')!.addEventListener('click', downloadSpec);
+
+        // Copy buttons
+        const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
+        const btnCopy2 = document.getElementById('btn-copy-2') as HTMLButtonElement;
+        btnCopy.addEventListener('click', () => copySpec(btnCopy));
+        btnCopy2.addEventListener('click', () => copySpec(btnCopy2));
+
+        // Copy prompt
+        const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
+        btnCopyPrompt.addEventListener('click', async () => {
+          track('prompt_copied', { tier });
+          try {
+            await navigator.clipboard.writeText(promptBox.textContent ?? '');
+            const original = btnCopyPrompt.textContent;
+            btnCopyPrompt.textContent = 'Copied!';
+            setTimeout(() => {
+              btnCopyPrompt.textContent = original;
+            }, 2000);
+          } catch {
+            // Fallback: select the text so user can Cmd+C / Ctrl+C
+            const range = document.createRange();
+            range.selectNodeContents(promptBox);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+            btnCopyPrompt.textContent = 'Select and copy manually';
+            setTimeout(() => {
+              btnCopyPrompt.textContent = 'Copy prompt';
+            }, 3000);
+          }
         });
-      });
-    } /* end if(answers) */
+
+        // Feedback
+        const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
+        const feedbackThanks = document.getElementById('feedback-thanks')!;
+
+        feedbackBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const feedback = btn.dataset.feedback;
+            track('feedback', { feedback: feedback ?? '', tier });
+            // Store locally as fallback
+            try {
+              const raw = localStorage.getItem('gist-feedback') ?? '[]';
+              let existing: unknown[];
+              try {
+                existing = JSON.parse(raw);
+                if (!Array.isArray(existing)) existing = [];
+              } catch {
+                console.warn('[spec] Corrupt feedback data, resetting');
+                existing = [];
+              }
+              existing.push({ feedback, timestamp: new Date().toISOString(), tier });
+              localStorage.setItem('gist-feedback', JSON.stringify(existing));
+            } catch {
+              /* storage inaccessible — feedback still sent via beacon */
+            }
+
+            feedbackBtns.forEach((b) => {
+              b.disabled = true;
+            });
+            feedbackThanks.hidden = false;
+          });
+        });
+      } catch (err) {
+        console.error('[spec] Generation failed:', err);
+        noAnswers.hidden = false;
+        const title = noAnswers.querySelector('.page-title');
+        if (title) title.textContent = 'Spec generation failed';
+        const subtitle = noAnswers.querySelector('.page-subtitle');
+        if (subtitle)
+          subtitle.textContent =
+            'Something went wrong while building your spec. Please try creating it again.';
+      }
+    } /* end if(answers) after parse */
   }
 </script>
 
