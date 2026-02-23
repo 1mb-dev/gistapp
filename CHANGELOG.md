@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-02-24
 
 ### Added
+
 - Persona fork: new-builder (jargon-free) and developer paths
 - Structured question flow with conditional visibility and auto-defaults
 - Complexity router: minimal / standard / full tiers based on answers
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tagged-release deploy workflow (GitHub Pages via actions/deploy-pages)
 
 ### Fixed
+
 - Complexity router: `realtime` freshness now correctly triggers full tier
 - Complexity router: `friends` scale with hourly/realtime triggers full tier (consistent with cron recommendation)
 - Question flow: `isDailyMobile` resolves `unsure` → `both` (matches `shouldRecommendPWA`)
