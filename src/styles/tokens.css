@@ -20,6 +20,10 @@
   --color-accent-text: #ffffff;
   --color-accent-glow: rgba(61, 50, 176, 0.08);
 
+  --color-logo-from: #4a3dc0;
+  --color-logo-to: #3d32b0;
+  --color-logo-fg: #ffffff;
+
   --color-accent-warm: #c06c1d;
   --color-accent-warm-subtle: #fef8f0;
 
@@ -122,6 +126,10 @@
     --color-accent-subtle: #1e1b4b;
     --color-accent-text: #0f0e22;
     --color-accent-glow: rgba(139, 148, 247, 0.06);
+
+    --color-logo-from: #8b94f7;
+    --color-logo-to: #7b83e8;
+    --color-logo-fg: #0f0e22;
 
     --color-accent-warm: #f0a83a;
     --color-accent-warm-subtle: #1c1706;

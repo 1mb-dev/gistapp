@@ -1,9 +1,9 @@
 /* TEAM */
 Name: Gist
-Site: https://gistapp.dev
+Site: https://gist.1mb.dev
 
 /* TECHNOLOGY */
 Astro, TypeScript, Cloudflare Pages
 
 /* THANKS */
-Built with Gist — https://gistapp.dev
+Built with Gist — https://gist.1mb.dev

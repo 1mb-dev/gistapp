@@ -1,5 +1,67 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#f8f7f4"/>
-  <text x="600" y="280" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-style="italic" fill="#1c1917">Gist</text>
-  <text x="600" y="360" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" fill="#57534e">Turn your app idea into a build-ready spec</text>
+  <rect width="1200" height="630" fill="#f6f5f0"/>
+
+  <!-- Left side: messaging -->
+  <text x="100" y="200"
+    font-family="Georgia, 'Times New Roman', serif" font-size="80" font-style="italic"
+    fill="#1a1816" letter-spacing="-1.5">Gist</text>
+  <text x="100" y="260"
+    font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="400"
+    fill="#4a4744">Turn your app idea</text>
+  <text x="100" y="296"
+    font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="400"
+    fill="#4a4744">into a build-ready spec</text>
+
+  <!-- Step badges -->
+  <rect x="100" y="350" width="100" height="32" rx="16" fill="#3d32b0" opacity="0.1"/>
+  <text x="150" y="371" text-anchor="middle"
+    font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#3d32b0">Describe</text>
+  <rect x="216" y="350" width="100" height="32" rx="16" fill="#3d32b0" opacity="0.1"/>
+  <text x="266" y="371" text-anchor="middle"
+    font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#3d32b0">Answer</text>
+  <rect x="332" y="350" width="110" height="32" rx="16" fill="#3d32b0" opacity="0.1"/>
+  <text x="387" y="371" text-anchor="middle"
+    font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#3d32b0">Download</text>
+
+  <!-- Domain -->
+  <text x="100" y="460"
+    font-family="system-ui, sans-serif" font-size="18" font-weight="500"
+    fill="#3d32b0">gist.1mb.dev</text>
+
+  <!-- Right side: spec document mockup -->
+  <g transform="translate(700, 60)">
+    <!-- Document shadow -->
+    <rect x="6" y="6" width="380" height="500" rx="12" fill="#1a1816" opacity="0.06"/>
+    <!-- Document -->
+    <rect width="380" height="500" rx="12" fill="#fdfcfa" stroke="#d6d2c9" stroke-width="1"/>
+    <!-- Header accent -->
+    <rect width="380" height="4" rx="2" fill="#3d32b0" opacity="0.8"/>
+    <!-- Title -->
+    <rect x="32" y="36" width="180" height="16" rx="8" fill="#3d32b0" opacity="0.6"/>
+    <rect x="32" y="64" width="140" height="8" rx="4" fill="#1a1816" opacity="0.12"/>
+    <!-- Section: Meta -->
+    <rect x="32" y="100" width="80" height="10" rx="5" fill="#1a1816" opacity="0.25"/>
+    <rect x="32" y="120" width="240" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="134" width="200" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="148" width="220" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <!-- Section: Architecture -->
+    <rect x="32" y="184" width="100" height="10" rx="5" fill="#1a1816" opacity="0.25"/>
+    <rect x="32" y="204" width="300" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="218" width="260" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="232" width="280" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="246" width="240" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <!-- Section: Checklist -->
+    <rect x="32" y="282" width="120" height="10" rx="5" fill="#1a1816" opacity="0.25"/>
+    <rect x="32" y="304" width="12" height="12" rx="3" fill="none" stroke="#3d32b0" stroke-width="2" opacity="0.4"/>
+    <rect x="52" y="307" width="160" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="328" width="12" height="12" rx="3" fill="none" stroke="#3d32b0" stroke-width="2" opacity="0.4"/>
+    <path d="M35 334 L38 337 L43 331" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/>
+    <rect x="52" y="331" width="140" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <rect x="32" y="352" width="12" height="12" rx="3" fill="none" stroke="#3d32b0" stroke-width="2" opacity="0.4"/>
+    <rect x="52" y="355" width="180" height="6" rx="3" fill="#1a1816" opacity="0.08"/>
+    <!-- Bottom -->
+    <rect x="32" y="400" width="316" height="1" fill="#d6d2c9" opacity="0.5"/>
+    <rect x="32" y="420" width="200" height="6" rx="3" fill="#1a1816" opacity="0.06"/>
+    <rect x="32" y="440" width="160" height="6" rx="3" fill="#1a1816" opacity="0.06"/>
+  </g>
 </svg>

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://gistapp.dev/sitemap-index.xml
+Sitemap: https://gist.1mb.dev/sitemap-index.xml

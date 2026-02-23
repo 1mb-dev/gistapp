@@ -1,0 +1,16 @@
+{
+  "name": "Gist",
+  "short_name": "Gist",
+  "description": "Turn your app idea into a build-ready spec",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f0",
+  "theme_color": "#3d32b0",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}
