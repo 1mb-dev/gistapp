@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-02-24
+
+### Fixed
+
+- **Security:** `timingSafeCompare` no longer leaks token length via early return — pads shorter input and XORs all bytes with length-mismatch flag
+- **Security:** `sessionStorage.getItem` in spec.astro wrapped in try-catch (private browsing, storage disabled)
+- **Security:** deploy.yml actions pinned to commit SHAs (supply chain hardening)
+- Worker: corrupt KV values preserved for inspection instead of silently overwriting with 1
+- Worker: stats endpoint reads count from KV metadata instead of N+1 individual get() calls
+- Worker: float `stepIndex` values rejected at dimensional key boundary
+- Worker: OPTIONS preflight scoped to `/api/event` and `/api/stats` only (was matching all paths)
+- Worker: `MAX_PAYLOAD_BYTES` renamed to `MAX_PAYLOAD_CHARS` (measures chars, not bytes)
+- Worker: `compatibility_date` bumped from 2025-01-01 to 2025-12-01
+- Frontend: create.astro shows error UI instead of navigating when sessionStorage write fails
+- Frontend: prompt extraction regex moved to exported `extractSuggestedPrompt()` helper in generator.ts
+- Frontend: variable shadow fixed (`raw` → `feedbackRaw` in spec.astro feedback handler)
+- Core: `needsWorkerProxy` now handles `'other'` data source with public scale
+- Core: dead `'other'` variant removed from `HostingPlatform` type
+- Core: `sectionBudgetMath` accepts `tier` parameter instead of recomputing it
+- Core: `hasExternalData`/`hasUserContent` renamed to `hasResolvedExternalData`/`hasResolvedUserContent` to distinguish from questions.ts versions
+- OG image: converted from SVG to PNG for social crawler compatibility
+- Node engine requirement bumped from >=18 to >=22 (matches CI)
+
 ## [1.1.0] - 2026-02-24
 
 ### Added
@@ -72,6 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed dead `free-text` response mode from types
 - Removed unreachable `api-details` branch in `renderOptions()`
 
+[1.1.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.1
 [1.1.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.0.0
