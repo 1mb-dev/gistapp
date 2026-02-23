@@ -10,7 +10,7 @@ const {
 } = Astro.props;
 
 const siteName = 'Gist';
-const fullTitle = title === siteName ? title : `${title} — ${siteName}`;
+const fullTitle = title.includes(siteName) ? title : `${title} — ${siteName}`;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 
@@ -23,13 +23,17 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)" />
 
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" as="style" />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
 
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content="/og-image.png" />
+    <!-- TODO: Replace with a proper 1200x630 PNG for full platform support -->
+    <meta property="og:image" content="/og-image.svg" />
     <meta property="og:type" content="website" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -39,6 +43,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <title>{fullTitle}</title>
   </head>
   <body>
+    <a href="#main-content" class="skip-nav">Skip to main content</a>
     <slot />
   </body>
 </html>
