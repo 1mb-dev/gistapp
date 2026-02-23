@@ -9,7 +9,7 @@ import Base from '../layouts/Base.astro';
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <!-- No answers state -->
     <section id="no-answers" class="no-answers-section" hidden>
       <div class="container">
@@ -145,7 +145,21 @@ import Base from '../layouts/Base.astro';
   if (!raw) {
     noAnswers.hidden = false;
   } else {
-    const answers: Partial<UserAnswers> = JSON.parse(raw);
+    let answers: Partial<UserAnswers> | null = null;
+    try {
+      answers = JSON.parse(raw);
+    } catch {
+      noAnswers.hidden = false;
+      const title = noAnswers.querySelector('.page-title');
+      if (title) title.textContent = 'Something went wrong';
+      const subtitle = noAnswers.querySelector('.page-subtitle');
+      if (subtitle) subtitle.textContent = 'Your answers couldn\u2019t be loaded. Please try creating your spec again.';
+      sessionStorage.removeItem('gist-answers');
+    }
+
+    if (!answers) {
+      /* parse failed — error UI already shown above */
+    } else {
     const spec = generateSpec(answers);
     const filename = generateFilename(answers);
     const tier = determineComplexity(answers);
@@ -252,23 +266,11 @@ import Base from '../layouts/Base.astro';
         feedbackThanks.hidden = false;
       });
     });
+  } /* end if(answers) else */
   }
 </script>
 
 <style is:global>
-  /* header */
-  .site-header {
-    padding: var(--space-5) 0;
-  }
-
-  .logo {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-style: italic;
-    color: var(--color-text);
-    letter-spacing: -0.01em;
-  }
-
   /* No answers */
   .no-answers-section {
     padding: var(--space-20) 0;
@@ -376,53 +378,11 @@ import Base from '../layouts/Base.astro';
     word-break: break-word;
   }
 
-  /* Buttons */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: 0.75rem 1.75rem;
-    border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    cursor: pointer;
-    border: none;
-    transition: all var(--duration-normal) var(--easing);
-    min-height: 44px;
-    font-family: inherit;
-    text-decoration: none;
-    letter-spacing: var(--tracking-wide);
-  }
-
-  .btn-primary {
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    box-shadow: 0 1px 2px rgba(67, 56, 202, 0.2), 0 4px 12px rgba(67, 56, 202, 0.15);
-  }
-
-  .btn-primary:hover {
-    background: var(--color-accent-hover);
-    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2), 0 8px 20px rgba(67, 56, 202, 0.2);
-    transform: translateY(-1px);
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--color-text-secondary);
-    border: 1.5px solid var(--color-border);
-  }
-
-  .btn-ghost:hover {
-    background: var(--color-bg-raised);
-    color: var(--color-text);
-    border-color: var(--color-text-muted);
-  }
-
+  /* Button size variants (extends global .btn) */
   .btn-sm {
     padding: var(--space-2) var(--space-4);
     font-size: var(--text-xs);
-    min-height: 32px;
+    min-height: 44px;
   }
 
   /* What's Next */
@@ -451,34 +411,6 @@ import Base from '../layouts/Base.astro';
     display: flex;
     gap: var(--space-5);
     align-items: flex-start;
-  }
-
-  .step-number {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-full);
-    border: 1.5px solid var(--color-border);
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-weight: var(--weight-normal);
-    font-size: var(--text-sm);
-  }
-
-  .step-content h3 {
-    font-size: var(--text-base);
-    font-weight: var(--weight-semibold);
-    margin-bottom: var(--space-1);
-    letter-spacing: var(--tracking-tight);
-  }
-
-  .step-content p {
-    font-size: var(--text-sm);
-    color: var(--color-text-secondary);
-    line-height: var(--leading-relaxed);
   }
 
   .prompt-preview {

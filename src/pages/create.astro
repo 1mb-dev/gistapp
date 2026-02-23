@@ -9,7 +9,7 @@ import Base from '../layouts/Base.astro';
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <!-- Phase 1: Persona fork -->
     <section id="persona-section" class="persona-section">
       <div class="container">
@@ -46,7 +46,7 @@ import Base from '../layouts/Base.astro';
         </div>
         <div class="question-counter" id="question-counter" aria-live="polite"></div>
 
-        <div id="question-container" class="question-container" role="form">
+        <div id="question-container" class="question-container" role="form" tabindex="-1">
           <!-- Questions rendered dynamically -->
         </div>
 
@@ -104,9 +104,14 @@ import Base from '../layouts/Base.astro';
   import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
 
   // --- State ---
-  const answers: Partial<UserAnswers> = {};
+  const saved = sessionStorage.getItem('gist-progress');
+  const answers: Partial<UserAnswers> = saved ? (() => { try { return JSON.parse(saved); } catch { return {}; } })() : {};
   let visibleQuestions: QuestionDef[] = [];
   let currentIndex = 0;
+
+  function saveProgress() {
+    sessionStorage.setItem('gist-progress', JSON.stringify(answers));
+  }
 
   // --- DOM refs ---
   const personaSection = document.getElementById('persona-section')!;
@@ -131,6 +136,7 @@ import Base from '../layouts/Base.astro';
     card.addEventListener('click', () => {
       const persona = card.dataset.persona as Persona;
       answers.persona = persona;
+      saveProgress();
 
       personaCards.forEach(c => c.setAttribute('aria-pressed', 'false'));
       card.setAttribute('aria-pressed', 'true');
@@ -145,6 +151,14 @@ import Base from '../layouts/Base.astro';
       }, 200);
     });
   });
+
+  // --- Resume saved progress ---
+  if (answers.persona) {
+    personaSection.hidden = true;
+    questionSection.hidden = false;
+    visibleQuestions = getVisibleQuestions(answers);
+    currentIndex = 0;
+  }
 
   // --- Question rendering ---
   function renderQuestion() {
@@ -263,11 +277,12 @@ import Base from '../layouts/Base.astro';
         const result = mapOptionToAnswer(q.id, opt.id);
         if (result) {
           (answers as Record<string, string>)[result.key] = result.value;
+          saveProgress();
         }
 
         // Handle free input option
         if (opt.freeInput) {
-          showFreeInput(q, opt.id, optionsList);
+          showFreeInput(opt, optionsList);
         } else {
           removeFreeInput(optionsList);
         }
@@ -286,7 +301,7 @@ import Base from '../layouts/Base.astro';
     questionContainer.appendChild(optionsList);
   }
 
-  function showFreeInput(q: QuestionDef, optionId: string, container: HTMLElement) {
+  function showFreeInput(opt: { freeInputKey?: string }, container: HTMLElement) {
     removeFreeInput(container);
     const wrapper = document.createElement('div');
     wrapper.className = 'free-input-wrapper';
@@ -296,10 +311,12 @@ import Base from '../layouts/Base.astro';
     input.className = 'free-input';
     input.rows = 2;
     input.placeholder = 'Describe in your own words...';
-    input.addEventListener('input', () => {
-      const key = q.id === 'data-source' ? 'dataSourceDetail' : 'designVibeCustom';
-      (answers as Record<string, string>)[key] = input.value;
-    });
+    if (opt.freeInputKey) {
+      input.addEventListener('input', () => {
+        (answers as Record<string, string>)[opt.freeInputKey!] = input.value;
+        saveProgress();
+      });
+    }
 
     wrapper.appendChild(input);
     container.appendChild(wrapper);
@@ -347,6 +364,7 @@ import Base from '../layouts/Base.astro';
 
       input.addEventListener('input', () => {
         (answers as Record<string, string>)[field.key] = input.value;
+        saveProgress();
         btnNext.disabled = !isQuestionAnswered(q);
       });
 
@@ -473,8 +491,9 @@ import Base from '../layouts/Base.astro';
     stackSection.hidden = true;
     generatingSection.hidden = false;
 
-    // Store answers for spec page
+    // Store answers for spec page, clear progress
     sessionStorage.setItem('gist-answers', JSON.stringify(answers));
+    sessionStorage.removeItem('gist-progress');
 
     // Navigate to spec preview after brief animation
     setTimeout(() => {
@@ -484,19 +503,6 @@ import Base from '../layouts/Base.astro';
 </script>
 
 <style is:global>
-  /* header */
-  .site-header {
-    padding: var(--space-5) 0;
-  }
-
-  .logo {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-style: italic;
-    color: var(--color-text);
-    letter-spacing: -0.01em;
-  }
-
   /* Persona fork */
   .persona-section {
     padding: var(--space-16) 0 var(--space-20);
@@ -762,54 +768,6 @@ import Base from '../layouts/Base.astro';
     gap: var(--space-3);
     justify-content: flex-end;
     margin-top: var(--space-10);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: 0.75rem 1.75rem;
-    border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    cursor: pointer;
-    border: none;
-    transition: all var(--duration-normal) var(--easing);
-    min-height: 44px;
-    font-family: inherit;
-    letter-spacing: var(--tracking-wide);
-  }
-
-  .btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-
-  .btn-primary {
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    box-shadow: 0 1px 2px rgba(67, 56, 202, 0.2), 0 4px 12px rgba(67, 56, 202, 0.15);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--color-accent-hover);
-    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2), 0 8px 20px rgba(67, 56, 202, 0.2);
-    transform: translateY(-1px);
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--color-text-secondary);
-    border: 1.5px solid var(--color-border);
-  }
-
-  .btn-ghost:hover {
-    background: var(--color-bg-raised);
-    color: var(--color-text);
-    border-color: var(--color-text-muted);
   }
 
   /* Stack confirmation */
