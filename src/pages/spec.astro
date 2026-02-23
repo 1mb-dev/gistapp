@@ -157,9 +157,7 @@ import Base from '../layouts/Base.astro';
       sessionStorage.removeItem('gist-answers');
     }
 
-    if (!answers) {
-      /* parse failed — error UI already shown above */
-    } else {
+    if (answers) {
     const spec = generateSpec(answers);
     const filename = generateFilename(answers);
     const tier = determineComplexity(answers);
@@ -266,7 +264,7 @@ import Base from '../layouts/Base.astro';
         feedbackThanks.hidden = false;
       });
     });
-  } /* end if(answers) else */
+  } /* end if(answers) */
   }
 </script>
 
