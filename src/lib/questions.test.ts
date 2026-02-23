@@ -39,6 +39,27 @@ describe('getVisibleQuestions', () => {
     const ids = visible.map((q) => q.id);
     expect(ids).toContain('offline');
   });
+
+  it('shows offline question for daily + unsure device (resolves to both)', () => {
+    const visible = getVisibleQuestions({
+      usageFrequency: 'daily',
+      deviceTarget: 'unsure',
+    });
+    const ids = visible.map((q) => q.id);
+    expect(ids).toContain('offline');
+  });
+
+  it('shows data-freshness when dataSource is rss', () => {
+    const visible = getVisibleQuestions({ dataSource: 'rss' });
+    const ids = visible.map((q) => q.id);
+    expect(ids).toContain('data-freshness');
+  });
+
+  it('shows user-input when dataSource is user-content', () => {
+    const visible = getVisibleQuestions({ dataSource: 'user-content' });
+    const ids = visible.map((q) => q.id);
+    expect(ids).toContain('user-input');
+  });
 });
 
 describe('resolveQuestion', () => {

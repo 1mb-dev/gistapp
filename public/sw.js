@@ -2,8 +2,8 @@
 const CACHE_VERSION = 'gist-v2';
 const PRECACHE_URLS = [
   '/',
-  '/create',
-  '/spec',
+  '/create/',
+  '/spec/',
   '/favicon.svg',
   '/og-image.svg',
   '/fonts/dm-mono-400-latin.woff2',

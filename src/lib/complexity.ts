@@ -18,7 +18,7 @@ export function determineComplexity(answers: Partial<UserAnswers>): ComplexityTi
   if (pageCount === 'many' && scale === 'public') {
     return 'full';
   }
-  if (dataFreshness === 'hourly' && scale === 'public') {
+  if ((dataFreshness === 'hourly' || dataFreshness === 'realtime') && scale !== 'personal') {
     return 'full';
   }
 

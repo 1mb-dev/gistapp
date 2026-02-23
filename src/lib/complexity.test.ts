@@ -84,6 +84,36 @@ describe('determineComplexity', () => {
       }),
     ).toBe('full');
   });
+
+  it('returns full for realtime freshness + public scale', () => {
+    expect(
+      determineComplexity({
+        dataFreshness: 'realtime',
+        scale: 'public',
+        pageCount: 'single',
+      }),
+    ).toBe('full');
+  });
+
+  it('returns full for realtime freshness + friends scale', () => {
+    expect(
+      determineComplexity({
+        dataFreshness: 'realtime',
+        scale: 'friends',
+        pageCount: 'single',
+      }),
+    ).toBe('full');
+  });
+
+  it('returns full for hourly freshness + friends scale', () => {
+    expect(
+      determineComplexity({
+        dataFreshness: 'hourly',
+        scale: 'friends',
+        pageCount: 'single',
+      }),
+    ).toBe('full');
+  });
 });
 
 describe('needsWorkerProxy', () => {
@@ -102,6 +132,10 @@ describe('needsWorkerProxy', () => {
   it('returns false when dataSource is unsure (resolves to no-external)', () => {
     expect(needsWorkerProxy({ scale: 'public', dataSource: 'unsure' })).toBe(false);
   });
+
+  it('returns true for public scale + rss', () => {
+    expect(needsWorkerProxy({ scale: 'public', dataSource: 'rss' })).toBe(true);
+  });
 });
 
 describe('needsCron', () => {
@@ -119,6 +153,10 @@ describe('needsCron', () => {
 
   it('returns false when freshness is unsure (resolves to daily)', () => {
     expect(needsCron({ dataFreshness: 'unsure', scale: 'public' })).toBe(false);
+  });
+
+  it('returns true for hourly freshness + friends scale', () => {
+    expect(needsCron({ dataFreshness: 'hourly', scale: 'friends' })).toBe(true);
   });
 });
 

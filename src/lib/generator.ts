@@ -52,12 +52,29 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
 
 /** Generate the kebab-case filename */
 export function generateFilename(answers: Partial<UserAnswers>): string {
-  const title = answers.title ?? 'my-app';
+  const title = answers.title ? sanitizeLine(answers.title) : 'my-app';
   const kebab = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
   return `${kebab}-gist-spec-v${GIST_VERSION}.md`;
+}
+
+// --- Sanitization ---
+
+/** Collapse newlines/tabs to spaces and trim — for single-line fields (title, apiKnownName). */
+function sanitizeLine(text: string): string {
+  return text.replace(/[\r\n\t]+/g, ' ').trim();
+}
+
+/** Preserve user text but escape leading markdown-structural chars (# and >) that would
+ *  break spec heading/blockquote structure — for multi-line fields (description, apiDescription, stackCustomizations). */
+function sanitizeBlock(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^(\s*)(#{1,6}\s|>)/, '$1\\$2'))
+    .join('\n')
+    .trim();
 }
 
 // --- Helpers ---
@@ -74,6 +91,9 @@ function resolveDeviceTarget(a: Partial<UserAnswers>): string | undefined {
   return a.deviceTarget === 'unsure' ? 'both' : a.deviceTarget;
 }
 
+/** Checks external data using resolved source ('unsure' → 'no-external') because
+ *  the spec generator needs resolved values. The questions.ts version intentionally
+ *  checks raw answers to control conditional question visibility. */
 function hasExternalData(a: Partial<UserAnswers>): boolean {
   const src = resolveDataSource(a);
   return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
@@ -126,7 +146,8 @@ function frameworkForTier(tier: ComplexityTier): string {
 // --- Section builders ---
 
 function sectionTitle(a: Partial<UserAnswers>): string {
-  return `# ${a.title ?? 'My App'} — Gist Specification`;
+  const title = a.title ? sanitizeLine(a.title) : 'My App';
+  return `# ${title} — Gist Specification`;
 }
 
 function sectionMeta(meta: SpecMeta): string {
@@ -143,10 +164,10 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   const tierInfo = tierDescriptions[tier];
   const parts: string[] = [];
 
-  parts.push(`> ${a.description ?? 'A web application.'}`);
+  parts.push(`> ${a.description ? sanitizeBlock(a.description) : 'A web application.'}`);
 
   if (hasExternalData(a) && a.apiKnownName) {
-    parts.push(`> Uses ${a.apiKnownName} for data.`);
+    parts.push(`> Uses ${sanitizeLine(a.apiKnownName)} for data.`);
   }
 
   if (needsWorkerProxy(a)) {
@@ -161,8 +182,8 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
 function sectionIdea(a: Partial<UserAnswers>): string {
   const lines = [
     '## Idea',
-    `- Title: ${a.title ?? 'Untitled'}`,
-    `- Description: ${a.description ?? ''}`,
+    `- Title: ${a.title ? sanitizeLine(a.title) : 'Untitled'}`,
+    `- Description: ${a.description ? sanitizeBlock(a.description) : ''}`,
   ];
 
   if (a.audience) lines.push(`- Audience: ${a.audience}`);
@@ -192,9 +213,9 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push('### Data & Caching');
 
     if (a.apiKnownName) {
-      lines.push(`- Data source: ${a.apiKnownName}`);
+      lines.push(`- Data source: ${sanitizeLine(a.apiKnownName)}`);
     } else if (a.apiDescription) {
-      lines.push(`- Data source: ${a.apiDescription}`);
+      lines.push(`- Data source: ${sanitizeBlock(a.apiDescription)}`);
     }
 
     if (a.dataFreshness) {
@@ -252,11 +273,11 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push('### APIs to Integrate');
 
     if (a.apiKnownName) {
-      lines.push(`- **${a.apiKnownName}**`);
+      lines.push(`- **${sanitizeLine(a.apiKnownName)}**`);
     }
 
     if (a.apiDescription) {
-      lines.push(`  - Data needed: ${a.apiDescription}`);
+      lines.push(`  - Data needed: ${sanitizeBlock(a.apiDescription)}`);
     }
 
     const proxyNeeded = needsWorkerProxy(a);
@@ -607,13 +628,15 @@ function sectionResearchNotes(a: Partial<UserAnswers>): string {
 
   if (hasExternalData(a)) {
     if (a.apiKnownName) {
-      lines.push(`> **${a.apiKnownName} verification:**`);
+      lines.push(`> **${sanitizeLine(a.apiKnownName)} verification:**`);
       lines.push('> - Confirm free tier limits and rate limits');
       lines.push('> - Confirm auth requirements (API key? OAuth? None?)');
       lines.push('> - Confirm CORS support for browser-side requests');
 
       if (a.apiDescription) {
-        lines.push(`> - Verify these data fields are available: ${a.apiDescription}`);
+        lines.push(
+          `> - Verify these data fields are available: ${sanitizeBlock(a.apiDescription)}`,
+        );
       }
 
       lines.push(
@@ -621,7 +644,7 @@ function sectionResearchNotes(a: Partial<UserAnswers>): string {
       );
     } else if (a.apiDescription) {
       lines.push('> **API research needed:**');
-      lines.push(`> - User needs: ${a.apiDescription}`);
+      lines.push(`> - User needs: ${sanitizeBlock(a.apiDescription)}`);
       lines.push(
         '> - Research suitable APIs. Evaluate: free tier limits, auth requirements, CORS support, data quality',
       );
@@ -658,7 +681,7 @@ function sectionCustomizations(a: Partial<UserAnswers>): string {
   return [
     '## User Customization Notes',
     `> The user requested the following customizations. Incorporate these preferences where possible:`,
-    `> ${a.stackCustomizations}`,
+    `> ${sanitizeBlock(a.stackCustomizations)}`,
   ].join('\n');
 }
 

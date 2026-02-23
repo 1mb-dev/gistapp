@@ -110,7 +110,7 @@ export interface QuestionOption {
 }
 
 /** Response modes for a question */
-export type ResponseMode = 'pick-one' | 'free-text' | 'multi-field';
+export type ResponseMode = 'pick-one' | 'multi-field';
 
 /** Definition of a single question in the flow */
 export interface QuestionDef {

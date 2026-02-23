@@ -1,32 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
 ---
 
 <Base title="Gist — Turn your app idea into a build-ready spec">
-  <header class="site-header animate-in">
-    <div class="container">
-      <a href="/" class="logo" aria-label="Gist home"
-        ><svg class="logo-mark" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"
-          ><defs
-            ><linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1"
-              ><stop offset="0%" stop-color="var(--color-logo-from)"></stop><stop
-                offset="100%"
-                stop-color="var(--color-logo-to)"></stop></linearGradient
-            ></defs
-          ><rect width="32" height="32" rx="8" fill="url(#logo-g)"></rect><text
-            x="50%"
-            y="53%"
-            dominant-baseline="central"
-            text-anchor="middle"
-            font-family="Georgia, 'Times New Roman', serif"
-            font-size="20"
-            font-style="italic"
-            fill="var(--color-logo-fg)">G</text
-          ></svg
-        ><span class="logo-text">Gist</span></a
-      >
-    </div>
-  </header>
+  <SiteHeader animate />
 
   <main id="main-content">
     <section class="hero">

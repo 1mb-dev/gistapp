@@ -1,6 +1,9 @@
 import type { QuestionDef, UserAnswers, Persona, PersonaOverlay } from './types';
 
-/** Returns true if the user selected an external data source */
+/** Returns true if the user selected an external data source.
+ *  Intentionally checks raw answers (no 'unsure' resolution) — conditional questions
+ *  should only appear when the user made an explicit external-data choice. The generator's
+ *  hasExternalData resolves 'unsure' first because the spec needs resolved values. */
 function hasExternalData(answers: Partial<UserAnswers>): boolean {
   const src = answers.dataSource;
   return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
@@ -11,12 +14,11 @@ function hasUserContent(answers: Partial<UserAnswers>): boolean {
   return answers.dataSource === 'user-content';
 }
 
-/** Returns true if the user's audience suggests mobile/daily use */
+/** Returns true if the user's audience suggests mobile/daily use.
+ *  Resolves 'unsure' → 'both' to match shouldRecommendPWA behavior. */
 function isDailyMobile(answers: Partial<UserAnswers>): boolean {
-  return (
-    answers.usageFrequency === 'daily' &&
-    (answers.deviceTarget === 'phone' || answers.deviceTarget === 'both')
-  );
+  const device = answers.deviceTarget === 'unsure' ? 'both' : answers.deviceTarget;
+  return answers.usageFrequency === 'daily' && (device === 'phone' || device === 'both');
 }
 
 export const questions: QuestionDef[] = [

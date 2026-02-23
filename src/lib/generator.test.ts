@@ -100,6 +100,25 @@ describe('generateSpec', () => {
     const spec = generateSpec(minimalAnswers);
     expect(spec).toContain('# My Tool — Gist Specification');
   });
+
+  it('includes User Input & Storage section for user-content answers', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'simple-form',
+    });
+    expect(spec).toContain('### User Input & Storage');
+    expect(spec).toContain('Simple form submission');
+  });
+
+  it('sanitizes title with newlines to a single-line heading', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      title: 'My\nBroken\nTitle',
+    });
+    expect(spec).toContain('# My Broken Title — Gist Specification');
+    expect(spec).not.toContain('# My\n');
+  });
 });
 
 describe('generateFilename', () => {
@@ -113,5 +132,9 @@ describe('generateFilename', () => {
 
   it('uses fallback for missing title', () => {
     expect(generateFilename({})).toBe('my-app-gist-spec-v1.0.md');
+  });
+
+  it('strips unicode from title', () => {
+    expect(generateFilename({ title: 'Café Tracker' })).toBe('caf-tracker-gist-spec-v1.0.md');
   });
 });
