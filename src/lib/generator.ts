@@ -225,6 +225,19 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     }
   }
 
+  // Lightweight Libraries (conditional, non-minimal tiers)
+  if (tier !== 'minimal') {
+    lines.push('');
+    lines.push('### Recommended Lightweight Libraries');
+    lines.push('> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.');
+    if (a.pageCount === 'many' || a.pageCount === 'few') {
+      lines.push('- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation');
+    }
+    if (hasExternalData(a) && (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')) {
+      lines.push('- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data');
+    }
+  }
+
   // User Input & Storage (conditional)
   if (hasUserContent(a)) {
     lines.push('');
@@ -255,6 +268,7 @@ function sectionDesign(a: Partial<UserAnswers>): string {
     '- Fonts: system-ui stack (fast loading, native feel)',
     '- Theme: Respect OS dark/light mode via `prefers-color-scheme`',
     '- Design tokens in `:root` custom properties',
+    '- CSS: Consider [oat](https://oat.ink/) — ultra-lightweight CSS+JS that styles semantic HTML without classes (`<1.5 KB`)',
   ];
 
   return lines.join('\n');
