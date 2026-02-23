@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Funnel event tracking: persona selection, question flow, spec generation, downloads, copies, feedback
 - Gist Insights Worker (Cloudflare Workers + KV) for custom event collection
 - Admin page (`/admin`) for viewing funnel stats (noindex, token-protected)
-- Worker deploy workflow (`.github/workflows/deploy-worker.yml`)
+- Worker health routes (`/` and `/health`) for UptimeRobot monitoring
 
 ### Changed
 
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Cloudflare Web Analytics (privacy-first, no cookies, auto-injected)
 - CSP: added CF Web Analytics domains to script-src and connect-src
 - CSP: added `_headers` file for CF Pages (meta tag kept as fallback)
-- Deploy workflow: simplified to release-only (CF Pages handles deploys)
+- Deploy workflow: unified Pages + Worker deploy on release publish (wrangler CLI, no Git connect)
 - Monitoring: add UptimeRobot HTTP monitor for `https://gist.1mb.dev`
 - Service worker: bumped cache version to gist-v3
 
