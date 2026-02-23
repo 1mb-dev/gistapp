@@ -1,0 +1,943 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Create your spec — Gist">
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo" aria-label="Gist home">Gist</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Phase 1: Persona fork -->
+    <section id="persona-section" class="persona-section">
+      <div class="container">
+        <h1 class="form-title">First, tell us about you</h1>
+        <p class="form-subtitle">This helps us adjust the level of detail in your spec.</p>
+        <div class="persona-cards" role="radiogroup" aria-label="Select your experience level">
+          <button
+            class="persona-card"
+            data-persona="new-builder"
+            aria-pressed="false"
+          >
+            <span class="persona-icon" aria-hidden="true">&#x1F331;</span>
+            <span class="persona-label">I'm new to building apps</span>
+            <span class="persona-detail">I'll explain everything clearly, no jargon.</span>
+          </button>
+          <button
+            class="persona-card"
+            data-persona="developer"
+            aria-pressed="false"
+          >
+            <span class="persona-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>
+            <span class="persona-label">I'm a developer</span>
+            <span class="persona-detail">Technical details, no hand-holding.</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2: Question flow -->
+    <section id="question-section" class="question-section" hidden>
+      <div class="container">
+        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="question-counter" id="question-counter" aria-live="polite"></div>
+
+        <div id="question-container" class="question-container" role="form">
+          <!-- Questions rendered dynamically -->
+        </div>
+
+        <div class="nav-actions">
+          <button id="btn-back" class="btn btn-ghost" type="button" hidden>Back</button>
+          <button id="btn-skip" class="btn btn-ghost" type="button" hidden>Skip</button>
+          <button id="btn-next" class="btn btn-primary" type="button" disabled>Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 3: Stack confirmation -->
+    <section id="stack-section" class="stack-section" hidden>
+      <div class="container">
+        <h2 class="form-title">Your stack</h2>
+        <p class="form-subtitle">Based on your answers, here's what we recommend. All free tier.</p>
+
+        <div id="stack-details" class="stack-details">
+          <!-- Stack components rendered dynamically -->
+        </div>
+
+        <div class="stack-customize">
+          <label for="stack-notes" class="stack-notes-label">Want to change anything? (optional)</label>
+          <textarea
+            id="stack-notes"
+            class="stack-notes"
+            rows="3"
+            placeholder="e.g. I'd prefer Vercel over Cloudflare, skip dark mode..."
+          ></textarea>
+        </div>
+
+        <div class="nav-actions">
+          <button id="btn-stack-back" class="btn btn-ghost" type="button">Back to questions</button>
+          <button id="btn-generate" class="btn btn-primary" type="button">Generate my spec</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 4: Generating -->
+    <section id="generating-section" class="generating-section" hidden>
+      <div class="container">
+        <div class="generating-spinner" aria-label="Generating your spec">
+          <div class="spinner"></div>
+          <p class="generating-text">Building your spec...</p>
+          <p class="generating-detail">Matching architecture to your answers.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<script>
+  import { questions, getVisibleQuestions, mapOptionToAnswer } from '../lib/questions';
+  import { determineComplexity, tierDescriptions, needsWorkerProxy, needsCron, shouldRecommendPWA } from '../lib/complexity';
+  import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
+
+  // --- State ---
+  const answers: Partial<UserAnswers> = {};
+  let visibleQuestions: QuestionDef[] = [];
+  let currentIndex = 0;
+
+  // --- DOM refs ---
+  const personaSection = document.getElementById('persona-section')!;
+  const questionSection = document.getElementById('question-section')!;
+  const stackSection = document.getElementById('stack-section')!;
+  const generatingSection = document.getElementById('generating-section')!;
+  const questionContainer = document.getElementById('question-container')!;
+  const progressFill = document.getElementById('progress-fill')!;
+  const questionCounter = document.getElementById('question-counter')!;
+  const btnBack = document.getElementById('btn-back') as HTMLButtonElement;
+  const btnSkip = document.getElementById('btn-skip') as HTMLButtonElement;
+  const btnNext = document.getElementById('btn-next') as HTMLButtonElement;
+  const btnStackBack = document.getElementById('btn-stack-back') as HTMLButtonElement;
+  const btnGenerate = document.getElementById('btn-generate') as HTMLButtonElement;
+  const stackDetails = document.getElementById('stack-details')!;
+  const stackNotes = document.getElementById('stack-notes') as HTMLTextAreaElement;
+
+  // --- Persona selection ---
+  const personaCards = document.querySelectorAll<HTMLButtonElement>('.persona-card');
+
+  personaCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const persona = card.dataset.persona as Persona;
+      answers.persona = persona;
+
+      personaCards.forEach(c => c.setAttribute('aria-pressed', 'false'));
+      card.setAttribute('aria-pressed', 'true');
+
+      // Brief delay so user sees selection, then advance
+      setTimeout(() => {
+        personaSection.hidden = true;
+        questionSection.hidden = false;
+        visibleQuestions = getVisibleQuestions(answers);
+        currentIndex = 0;
+        renderQuestion();
+      }, 200);
+    });
+  });
+
+  // --- Question rendering ---
+  function renderQuestion() {
+    // Recalculate visible questions (conditions may have changed)
+    visibleQuestions = getVisibleQuestions(answers);
+
+    if (currentIndex >= visibleQuestions.length) {
+      showStackConfirmation();
+      return;
+    }
+
+    const q = visibleQuestions[currentIndex];
+
+    // Update progress
+    const progress = Math.round(((currentIndex) / visibleQuestions.length) * 100);
+    progressFill.style.width = `${progress}%`;
+    const progressBar = progressFill.parentElement!;
+    progressBar.setAttribute('aria-valuenow', String(progress));
+    questionCounter.textContent = `Question ${currentIndex + 1} of ${visibleQuestions.length}`;
+
+    // Clear existing content safely
+    questionContainer.replaceChildren();
+
+    // Title
+    const title = document.createElement('h2');
+    title.className = 'question-title';
+    title.textContent = q.title;
+    questionContainer.appendChild(title);
+
+    // Subtitle
+    if (q.subtitle) {
+      const subtitle = document.createElement('p');
+      subtitle.className = 'question-subtitle';
+      subtitle.textContent = q.subtitle;
+      questionContainer.appendChild(subtitle);
+    }
+
+    // Render based on response mode
+    if (q.responseMode === 'pick-one' && q.options) {
+      renderOptions(q);
+    } else if (q.responseMode === 'multi-field' && q.fields) {
+      renderFields(q);
+    }
+
+    // Navigation state
+    btnBack.hidden = currentIndex === 0;
+    btnSkip.hidden = !q.optional;
+    btnNext.disabled = !isQuestionAnswered(q);
+
+    // Focus management
+    questionContainer.focus();
+  }
+
+  function renderOptions(q: QuestionDef) {
+    const optionsList = document.createElement('div');
+    optionsList.className = 'options-platter';
+    optionsList.setAttribute('role', 'radiogroup');
+    optionsList.setAttribute('aria-label', q.title);
+
+    // Q6 UX note: signal open-ended question
+    if (q.id === 'api-details') {
+      const note = document.createElement('p');
+      note.className = 'question-note';
+      note.textContent = 'This one\'s open-ended \u2014 describe what data your app needs in your own words.';
+      questionContainer.appendChild(note);
+    }
+
+    for (const opt of q.options!) {
+      const btn = document.createElement('button');
+      btn.className = 'option-card';
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      btn.dataset.optionId = opt.id;
+
+      // Check if this option is already selected
+      const mapping = mapOptionToAnswer(q.id, opt.id);
+      if (mapping && answers[mapping.key] === mapping.value) {
+        btn.classList.add('selected');
+        btn.setAttribute('aria-checked', 'true');
+      } else {
+        btn.setAttribute('aria-checked', 'false');
+      }
+
+      const label = document.createElement('span');
+      label.className = 'option-label';
+      label.textContent = opt.label;
+      btn.appendChild(label);
+
+      if (opt.detail) {
+        const detail = document.createElement('span');
+        detail.className = 'option-detail';
+        detail.textContent = opt.detail;
+        btn.appendChild(detail);
+      }
+
+      btn.addEventListener('click', () => {
+        // Deselect all siblings
+        optionsList.querySelectorAll('.option-card').forEach(c => {
+          c.classList.remove('selected');
+          c.setAttribute('aria-checked', 'false');
+        });
+        btn.classList.add('selected');
+        btn.setAttribute('aria-checked', 'true');
+
+        // Store answer
+        const result = mapOptionToAnswer(q.id, opt.id);
+        if (result) {
+          (answers as Record<string, string>)[result.key] = result.value;
+        }
+
+        // Handle free input option
+        if (opt.freeInput) {
+          showFreeInput(q, opt.id, optionsList);
+        } else {
+          removeFreeInput(optionsList);
+        }
+
+        btnNext.disabled = false;
+
+        // Auto-advance for non-free-input options after brief visual feedback
+        if (!opt.freeInput) {
+          setTimeout(() => advance(), 250);
+        }
+      });
+
+      optionsList.appendChild(btn);
+    }
+
+    questionContainer.appendChild(optionsList);
+  }
+
+  function showFreeInput(q: QuestionDef, optionId: string, container: HTMLElement) {
+    removeFreeInput(container);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'free-input-wrapper';
+    wrapper.dataset.freeInput = 'true';
+
+    const input = document.createElement('textarea');
+    input.className = 'free-input';
+    input.rows = 2;
+    input.placeholder = 'Describe in your own words...';
+    input.addEventListener('input', () => {
+      const key = q.id === 'data-source' ? 'dataSourceDetail' : 'designVibeCustom';
+      (answers as Record<string, string>)[key] = input.value;
+    });
+
+    wrapper.appendChild(input);
+    container.appendChild(wrapper);
+    input.focus();
+  }
+
+  function removeFreeInput(container: HTMLElement) {
+    const existing = container.querySelector('[data-free-input]');
+    if (existing) existing.remove();
+  }
+
+  function renderFields(q: QuestionDef) {
+    const fieldset = document.createElement('div');
+    fieldset.className = 'fields-group';
+
+    for (const field of q.fields!) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'field-wrapper';
+
+      const label = document.createElement('label');
+      label.className = 'field-label';
+      label.textContent = field.label;
+      const inputId = `field-${field.key}`;
+      label.setAttribute('for', inputId);
+
+      let input: HTMLInputElement | HTMLTextAreaElement;
+      if (field.multiline) {
+        input = document.createElement('textarea');
+        (input as HTMLTextAreaElement).rows = 3;
+      } else {
+        input = document.createElement('input');
+        input.type = 'text';
+      }
+
+      input.id = inputId;
+      input.className = 'field-input';
+      input.placeholder = field.placeholder;
+      if (field.required) input.required = true;
+
+      // Restore existing value
+      const existingVal = answers[field.key];
+      if (existingVal && typeof existingVal === 'string') {
+        input.value = existingVal;
+      }
+
+      input.addEventListener('input', () => {
+        (answers as Record<string, string>)[field.key] = input.value;
+        btnNext.disabled = !isQuestionAnswered(q);
+      });
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      fieldset.appendChild(wrapper);
+    }
+
+    questionContainer.appendChild(fieldset);
+  }
+
+  function isQuestionAnswered(q: QuestionDef): boolean {
+    if (q.optional) return true;
+
+    if (q.responseMode === 'pick-one') {
+      const mapping = q.options?.find(opt => {
+        const m = mapOptionToAnswer(q.id, opt.id);
+        return m && answers[m.key] !== undefined;
+      });
+      return !!mapping;
+    }
+
+    if (q.responseMode === 'multi-field' && q.fields) {
+      return q.fields
+        .filter(f => f.required)
+        .every(f => {
+          const val = answers[f.key];
+          return typeof val === 'string' && val.trim().length > 0;
+        });
+    }
+
+    return false;
+  }
+
+  // --- Navigation ---
+  function advance() {
+    currentIndex++;
+    renderQuestion();
+  }
+
+  btnNext.addEventListener('click', advance);
+
+  btnBack.addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      renderQuestion();
+    }
+  });
+
+  btnSkip.addEventListener('click', advance);
+
+  // --- Stack confirmation ---
+  function showStackConfirmation() {
+    questionSection.hidden = true;
+    stackSection.hidden = false;
+
+    const tier = determineComplexity(answers);
+    const tierInfo = tierDescriptions[tier];
+
+    stackDetails.replaceChildren();
+
+    // Tier badge
+    const badge = document.createElement('div');
+    badge.className = `stack-tier-badge tier-${tier}`;
+    badge.textContent = `${tierInfo.label} tier`;
+    stackDetails.appendChild(badge);
+
+    // Framework
+    const framework = document.createElement('p');
+    framework.className = 'stack-framework';
+    framework.textContent = tierInfo.framework;
+    stackDetails.appendChild(framework);
+
+    // Description
+    const desc = document.createElement('p');
+    desc.className = 'stack-description';
+    desc.textContent = tierInfo.description;
+    stackDetails.appendChild(desc);
+
+    // Components list
+    const list = document.createElement('ul');
+    list.className = 'stack-components';
+    for (const comp of tierInfo.components) {
+      const li = document.createElement('li');
+      li.textContent = comp;
+      list.appendChild(li);
+    }
+    stackDetails.appendChild(list);
+
+    // Extra recommendations
+    if (needsWorkerProxy(answers)) {
+      const proxy = document.createElement('p');
+      proxy.className = 'stack-note';
+      proxy.textContent = 'Includes a Worker proxy for API key protection.';
+      stackDetails.appendChild(proxy);
+    }
+
+    if (needsCron(answers)) {
+      const cron = document.createElement('p');
+      cron.className = 'stack-note';
+      cron.textContent = 'Includes scheduled updates (GitHub Actions cron).';
+      stackDetails.appendChild(cron);
+    }
+
+    if (shouldRecommendPWA(answers)) {
+      const pwa = document.createElement('p');
+      pwa.className = 'stack-note';
+      pwa.textContent = 'PWA recommended for daily mobile use (installable, works offline).';
+      stackDetails.appendChild(pwa);
+    }
+  }
+
+  btnStackBack.addEventListener('click', () => {
+    stackSection.hidden = true;
+    questionSection.hidden = false;
+    currentIndex = visibleQuestions.length - 1;
+    renderQuestion();
+  });
+
+  btnGenerate.addEventListener('click', () => {
+    answers.stackConfirmed = true;
+    answers.stackCustomizations = stackNotes.value.trim() || undefined;
+
+    stackSection.hidden = true;
+    generatingSection.hidden = false;
+
+    // Store answers for spec page
+    sessionStorage.setItem('gist-answers', JSON.stringify(answers));
+
+    // Navigate to spec preview after brief animation
+    setTimeout(() => {
+      window.location.href = '/spec';
+    }, 1200);
+  });
+</script>
+
+<style>
+  .site-header {
+    padding: var(--space-5) 0;
+  }
+
+  .logo {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+  }
+
+  /* Persona fork */
+  .persona-section {
+    padding: var(--space-16) 0;
+    text-align: center;
+  }
+
+  .form-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-2);
+  }
+
+  .form-subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-10);
+  }
+
+  .persona-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    max-width: 480px;
+    margin-inline: auto;
+  }
+
+  .persona-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-6) var(--space-5);
+    background: var(--color-bg-raised);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--easing),
+                box-shadow var(--duration-fast) var(--easing);
+    min-height: 44px;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .persona-card:hover {
+    border-color: var(--color-accent);
+  }
+
+  .persona-card[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-subtle);
+  }
+
+  .persona-icon {
+    font-size: var(--text-2xl);
+  }
+
+  .persona-label {
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-base);
+  }
+
+  .persona-detail {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  /* Question flow */
+  .question-section {
+    padding: var(--space-8) 0 var(--space-16);
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--color-bg-sunken);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: var(--space-2);
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    transition: width var(--duration-normal) var(--easing);
+    width: 0%;
+  }
+
+  .question-counter {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-8);
+  }
+
+  .question-container {
+    min-height: 280px;
+    outline: none;
+  }
+
+  .question-container:focus {
+    outline: none;
+  }
+
+  .question-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.01em;
+    margin-bottom: var(--space-2);
+  }
+
+  .question-subtitle {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-6);
+  }
+
+  .question-note {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-bottom: var(--space-4);
+  }
+
+  /* Options platter */
+  .options-platter {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-bg-raised);
+    border: 2px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--easing),
+                background var(--duration-fast) var(--easing);
+    min-height: 44px;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .option-card:hover {
+    border-color: var(--color-border);
+    background: var(--color-bg-overlay);
+  }
+
+  .option-card.selected {
+    border-color: var(--color-accent);
+    background: var(--color-accent-subtle);
+  }
+
+  .option-label {
+    font-weight: var(--weight-medium);
+  }
+
+  .option-detail {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .option-card.selected .option-detail {
+    color: var(--color-text);
+  }
+
+  /* Free input */
+  .free-input-wrapper {
+    margin-top: var(--space-3);
+  }
+
+  .free-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    resize: vertical;
+  }
+
+  .free-input:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Text fields */
+  .fields-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .field-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .field-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-text);
+  }
+
+  .field-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--text-base);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .field-input:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .field-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  textarea.field-input {
+    resize: vertical;
+  }
+
+  /* Navigation */
+  .nav-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: flex-end;
+    margin-top: var(--space-8);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+    border: none;
+    transition: background var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing),
+                opacity var(--duration-fast) var(--easing);
+    min-height: 44px;
+    font-family: inherit;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-ghost:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text);
+  }
+
+  /* Stack confirmation */
+  .stack-section {
+    padding: var(--space-12) 0 var(--space-16);
+  }
+
+  .stack-details {
+    max-width: 480px;
+    margin-inline: auto;
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
+  .stack-tier-badge {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-4);
+  }
+
+  .tier-minimal { background: var(--color-status-success-bg); color: var(--color-status-success); }
+  .tier-standard { background: var(--color-accent-subtle); color: var(--color-accent); }
+  .tier-full { background: var(--color-status-warning-bg); color: var(--color-status-warning); }
+
+  .stack-framework {
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-2);
+  }
+
+  .stack-description {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-4);
+  }
+
+  .stack-components {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .stack-components li {
+    font-size: var(--text-sm);
+    padding-left: var(--space-5);
+    position: relative;
+  }
+
+  .stack-components li::before {
+    content: '\2713';
+    position: absolute;
+    left: 0;
+    color: var(--color-status-success);
+    font-weight: var(--weight-bold);
+  }
+
+  .stack-note {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: var(--space-3);
+    padding-left: var(--space-5);
+    position: relative;
+  }
+
+  .stack-note::before {
+    content: '+';
+    position: absolute;
+    left: 0;
+    color: var(--color-accent);
+    font-weight: var(--weight-bold);
+  }
+
+  .stack-customize {
+    max-width: 480px;
+    margin-inline: auto;
+    margin-bottom: var(--space-6);
+  }
+
+  .stack-notes-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-2);
+  }
+
+  .stack-notes {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    resize: vertical;
+  }
+
+  .stack-notes:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Generating state */
+  .generating-section {
+    padding: var(--space-16) 0;
+    text-align: center;
+  }
+
+  .generating-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: var(--radius-full);
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .generating-text {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+  }
+
+  .generating-detail {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  /* Responsive */
+  @media (min-width: 640px) {
+    .form-title {
+      font-size: var(--text-3xl);
+    }
+
+    .persona-cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation: none;
+      border-top-color: var(--color-accent);
+      opacity: 0.6;
+    }
+
+    .progress-fill {
+      transition: none;
+    }
+  }
+</style>
