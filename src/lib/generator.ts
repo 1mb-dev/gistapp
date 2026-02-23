@@ -1,5 +1,11 @@
 import type { UserAnswers, ComplexityTier, SpecMeta } from './types';
-import { determineComplexity, tierDescriptions, needsWorkerProxy, needsCron, shouldRecommendPWA } from './complexity';
+import {
+  determineComplexity,
+  tierDescriptions,
+  needsWorkerProxy,
+  needsCron,
+  shouldRecommendPWA,
+} from './complexity';
 
 const GIST_VERSION = '1.0';
 
@@ -85,9 +91,9 @@ function hostingName(a: Partial<UserAnswers>): string {
   const map: Record<string, string> = {
     'cloudflare-pages': 'Cloudflare Pages',
     'github-pages': 'GitHub Pages',
-    'vercel': 'Vercel',
-    'netlify': 'Netlify',
-    'unsure': 'Cloudflare Pages (recommended)',
+    vercel: 'Vercel',
+    netlify: 'Netlify',
+    unsure: 'Cloudflare Pages (recommended)',
   };
   return map[a.hosting ?? 'unsure'] ?? 'Cloudflare Pages';
 }
@@ -169,7 +175,9 @@ function sectionIdea(a: Partial<UserAnswers>): string {
     lines.push('- Page count: single (default — you selected "I\'m not sure")');
   }
   if (a.dataSource === 'unsure') {
-    lines.push('- Data source: none assumed (you selected "I\'m not sure" — the spec keeps things flexible)');
+    lines.push(
+      '- Data source: none assumed (you selected "I\'m not sure" — the spec keeps things flexible)',
+    );
   }
 
   return lines.join('\n');
@@ -199,14 +207,20 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
       };
       lines.push(`- Update frequency: ${freshnessMap[a.dataFreshness]}`);
       if (a.dataFreshness === 'unsure') {
-        lines.push('  - > *You selected "I\'m not sure" — we defaulted to daily updates. This is the safest choice: low API usage, simple caching, easy to change later.*');
+        lines.push(
+          '  - > *You selected "I\'m not sure" — we defaulted to daily updates. This is the safest choice: low API usage, simple caching, easy to change later.*',
+        );
       }
     }
 
     if (needsCron(a)) {
-      lines.push('- Caching strategy: Cron job updates cache hourly. Frontend reads from cache (fast, no API key exposed).');
+      lines.push(
+        '- Caching strategy: Cron job updates cache hourly. Frontend reads from cache (fast, no API key exposed).',
+      );
     } else if (needsWorkerProxy(a)) {
-      lines.push('- Caching strategy: Worker proxies API calls. Consider adding cache headers for repeat requests.');
+      lines.push(
+        '- Caching strategy: Worker proxies API calls. Consider adding cache headers for repeat requests.',
+      );
     }
   }
 
@@ -246,12 +260,18 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     }
 
     const proxyNeeded = needsWorkerProxy(a);
-    lines.push(`  - CORS from browser: ${proxyNeeded ? 'Verify — may need Worker proxy' : 'Verify availability'}`);
+    lines.push(
+      `  - CORS from browser: ${proxyNeeded ? 'Verify — may need Worker proxy' : 'Verify availability'}`,
+    );
 
     if (proxyNeeded) {
-      lines.push('  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support. If API key required, route through Worker proxy — never expose in frontend.**');
+      lines.push(
+        '  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support. If API key required, route through Worker proxy — never expose in frontend.**',
+      );
     } else {
-      lines.push('  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support, rate limits.**');
+      lines.push(
+        '  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support, rate limits.**',
+      );
     }
   }
 
@@ -259,15 +279,21 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   if (tier !== 'minimal') {
     const libs: string[] = [];
     if (a.pageCount === 'many' || a.pageCount === 'few') {
-      libs.push('- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation');
+      libs.push(
+        '- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation',
+      );
     }
     if (hasExternalData(a) && (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')) {
-      libs.push('- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data');
+      libs.push(
+        '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
+      );
     }
     if (libs.length > 0) {
       lines.push('');
       lines.push('### Recommended Lightweight Libraries');
-      lines.push('> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.');
+      lines.push(
+        '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
+      );
       lines.push(...libs);
     }
   }
@@ -280,11 +306,17 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     if (a.userInputType === 'simple-form') {
       lines.push('- Type: Simple form submission (contact, feedback, newsletter)');
       lines.push('- Storage: Consider Cloudflare Workers KV, Formspree, or Netlify Forms');
-      lines.push('- Validation: Client-side + server-side. Sanitize all input. CSRF protection if using custom backend.');
+      lines.push(
+        '- Validation: Client-side + server-side. Sanitize all input. CSRF protection if using custom backend.',
+      );
     } else if (a.userInputType === 'user-saves-data') {
       lines.push('- Type: Users create and save data (accounts, preferences, entries)');
-      lines.push('- Storage: Requires a database. Consider Cloudflare D1 (SQLite), Supabase, or Firebase.');
-      lines.push('- **Note: This significantly increases complexity. Consider whether the MVP can launch with simpler storage (localStorage, KV) and upgrade later.**');
+      lines.push(
+        '- Storage: Requires a database. Consider Cloudflare D1 (SQLite), Supabase, or Firebase.',
+      );
+      lines.push(
+        '- **Note: This significantly increases complexity. Consider whether the MVP can launch with simpler storage (localStorage, KV) and upgrade later.**',
+      );
     } else {
       lines.push('- Type: Display only — content is pre-loaded, users view it');
       lines.push('- No user input handling needed');
@@ -311,22 +343,34 @@ function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
 function sectionUXStates(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   const lines = ['## UX States', ''];
 
-  lines.push('- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.');
+  lines.push(
+    '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
+  );
 
   if (hasExternalData(a)) {
-    lines.push('- **Empty / First Use** — Prompt user for initial input or location. Clear call to action.');
-    lines.push('- **Error (API)** — Friendly error message with "Try again" button. Never a dead end.');
+    lines.push(
+      '- **Empty / First Use** — Prompt user for initial input or location. Clear call to action.',
+    );
+    lines.push(
+      '- **Error (API)** — Friendly error message with "Try again" button. Never a dead end.',
+    );
     lines.push('- **Error (Network)** — "Check your connection" message with retry option.');
   }
 
-  lines.push('- **Success** — Primary content displayed. Clean, focused layout matching the design vibe.');
+  lines.push(
+    '- **Success** — Primary content displayed. Clean, focused layout matching the design vibe.',
+  );
 
   if (hasExternalData(a) && needsCron(a)) {
-    lines.push('- **Stale data** — If cached data is old, show warning: "Data may be outdated. Last updated: [time]."');
+    lines.push(
+      '- **Stale data** — If cached data is old, show warning: "Data may be outdated. Last updated: [time]."',
+    );
   }
 
   if (hasUserContent(a)) {
-    lines.push('- **Form validation** — Inline validation with helpful messages. Don\'t block submission for optional fields.');
+    lines.push(
+      "- **Form validation** — Inline validation with helpful messages. Don't block submission for optional fields.",
+    );
   }
 
   lines.push('- **Offline** — Show appropriate message. If PWA with cache, show last-known data.');
@@ -364,7 +408,9 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
       } else {
         lines.push('4. Worker returns response to browser');
       }
-      lines.push(`${needsCron(a) ? '7' : '5'}. Browser renders data using safe DOM methods (\`textContent\`, not \`innerHTML\`)`);
+      lines.push(
+        `${needsCron(a) ? '7' : '5'}. Browser renders data using safe DOM methods (\`textContent\`, not \`innerHTML\`)`,
+      );
     } else {
       lines.push('1. Browser fetches data directly from API (no key needed, CORS-friendly)');
       lines.push('2. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)');
@@ -379,7 +425,9 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
 
     if (needsWorkerProxy(a)) {
       lines.push('- Worker (private): holds API keys, proxies requests, reads/writes cache');
-      lines.push('- **Never expose:** API keys must not appear in frontend JS, HTML, config, or git history');
+      lines.push(
+        '- **Never expose:** API keys must not appear in frontend JS, HTML, config, or git history',
+      );
     }
 
     if (needsCron(a)) {
@@ -393,11 +441,15 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
     lines.push('### Secret Configuration');
     lines.push('| Secret | Platform | How to Set | Used By |');
     lines.push('|---|---|---|---|');
-    lines.push('| API key | Cloudflare Worker | `npx wrangler secret put API_KEY` | Worker (API fetch) |');
+    lines.push(
+      '| API key | Cloudflare Worker | `npx wrangler secret put API_KEY` | Worker (API fetch) |',
+    );
 
     if (needsCron(a)) {
       lines.push('| API key | GitHub Actions | Settings > Secrets > Actions | Cron workflow |');
-      lines.push('| `CF_API_TOKEN` | GitHub Actions | Settings > Secrets > Actions | Cron trigger auth |');
+      lines.push(
+        '| `CF_API_TOKEN` | GitHub Actions | Settings > Secrets > Actions | Cron trigger auth |',
+      );
     }
   }
 
@@ -409,7 +461,9 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
   if (needsWorkerProxy(a)) {
     lines.push('');
     lines.push('**Security:**');
-    lines.push('- [ ] `git log -p | grep -i` for: API_KEY, SECRET, TOKEN, PASSWORD — must find zero matches');
+    lines.push(
+      '- [ ] `git log -p | grep -i` for: API_KEY, SECRET, TOKEN, PASSWORD — must find zero matches',
+    );
     lines.push('- [ ] Search `dist/` build output for API key strings — must find zero matches');
     lines.push('- [ ] Verify no secrets in any committed file');
     lines.push('- [ ] Verify Worker does not echo API key in responses or error messages');
@@ -465,7 +519,9 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
   lines.push('| `robots.txt` | `User-agent: * Allow: /` |');
   lines.push('| `.gitignore` | `.env`, `.env.*`, `*.local`, `node_modules/`, `dist/` |');
   lines.push('| `404.html` | Custom 404 page with navigation back to home |');
-  lines.push('| `humans.txt` | Credits: team, tools, site info ([humanstxt.org](http://humanstxt.org/)) |');
+  lines.push(
+    '| `humans.txt` | Credits: team, tools, site info ([humanstxt.org](http://humanstxt.org/)) |',
+  );
 
   if (needsWorkerProxy(a)) {
     lines.push('| `.env.example` | Placeholder for API keys (never real values) |');
@@ -503,7 +559,9 @@ function sectionAccessibility(a: Partial<UserAnswers>): string {
     lines.push('- Mobile-first layout with comfortable touch spacing');
   }
   if (a.deviceTarget === 'unsure') {
-    lines.push('  - > *You selected "I\'m not sure" — we defaulted to supporting both phone and desktop.*');
+    lines.push(
+      '  - > *You selected "I\'m not sure" — we defaulted to supporting both phone and desktop.*',
+    );
   }
 
   return lines.join('\n');
@@ -558,11 +616,15 @@ function sectionResearchNotes(a: Partial<UserAnswers>): string {
         lines.push(`> - Verify these data fields are available: ${a.apiDescription}`);
       }
 
-      lines.push('> - If API key is required, route through Worker proxy — never expose in frontend');
+      lines.push(
+        '> - If API key is required, route through Worker proxy — never expose in frontend',
+      );
     } else if (a.apiDescription) {
       lines.push('> **API research needed:**');
       lines.push(`> - User needs: ${a.apiDescription}`);
-      lines.push('> - Research suitable APIs. Evaluate: free tier limits, auth requirements, CORS support, data quality');
+      lines.push(
+        '> - Research suitable APIs. Evaluate: free tier limits, auth requirements, CORS support, data quality',
+      );
       lines.push('> - Prefer APIs with generous free tiers and no API key requirement');
       lines.push('> - If API key is required, plan for Worker proxy');
     }
@@ -571,11 +633,13 @@ function sectionResearchNotes(a: Partial<UserAnswers>): string {
   if (a.hosting === 'unsure') {
     lines.push('>');
     lines.push('> **Hosting recommendation:**');
-    lines.push('> - Cloudflare Pages: Unlimited builds, global CDN, atomic deploys, Workers integration');
+    lines.push(
+      '> - Cloudflare Pages: Unlimited builds, global CDN, atomic deploys, Workers integration',
+    );
     lines.push('> - GitHub Pages: Simplest setup, great for static sites');
     lines.push('> - Vercel: Great developer experience, 100 GB bandwidth/month');
     lines.push('> - Netlify: Form handling built in, 100 GB bandwidth/month');
-    lines.push('> - Recommend based on the app\'s needs (Worker integration? Forms? Simplicity?)');
+    lines.push("> - Recommend based on the app's needs (Worker integration? Forms? Simplicity?)");
   }
 
   if (shouldRecommendPWA(a)) {
@@ -619,7 +683,9 @@ function sectionCSP(a: Partial<UserAnswers>): string {
   lines.push('">');
   lines.push('```');
   lines.push('');
-  lines.push('> Tighten `connect-src` after you know exact API domains (e.g., `connect-src \'self\' https://api.example.com`).');
+  lines.push(
+    "> Tighten `connect-src` after you know exact API domains (e.g., `connect-src 'self' https://api.example.com`).",
+  );
 
   return lines.join('\n');
 }
@@ -680,21 +746,33 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
   let step = 1;
 
   if (tier === 'minimal') {
-    lines.push(`${step++}. **Scaffold** — Create \`index.html\`, \`style.css\`, \`app.js\`, \`favicon.svg\`, \`robots.txt\`, \`.gitignore\``);
+    lines.push(
+      `${step++}. **Scaffold** — Create \`index.html\`, \`style.css\`, \`app.js\`, \`favicon.svg\`, \`robots.txt\`, \`.gitignore\``,
+    );
   } else {
-    lines.push(`${step++}. **Scaffold** — \`npm create astro@latest\`, configure \`astro.config.mjs\`, \`.gitignore\``);
+    lines.push(
+      `${step++}. **Scaffold** — \`npm create astro@latest\`, configure \`astro.config.mjs\`, \`.gitignore\``,
+    );
   }
 
-  lines.push(`${step++}. **HTML shell** — Semantic markup with all UX states (loading, error, success). No data yet.`);
-  lines.push(`${step++}. **Styles** — Design tokens, palette, dark mode, responsive layout, 44px touch targets`);
-  lines.push(`${step++}. **Mock data** — Render the UI with hardcoded data so you can approve the design`);
+  lines.push(
+    `${step++}. **HTML shell** — Semantic markup with all UX states (loading, error, success). No data yet.`,
+  );
+  lines.push(
+    `${step++}. **Styles** — Design tokens, palette, dark mode, responsive layout, 44px touch targets`,
+  );
+  lines.push(
+    `${step++}. **Mock data** — Render the UI with hardcoded data so you can approve the design`,
+  );
 
   if (needsWorkerProxy(a)) {
     lines.push(`${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint`);
   }
 
   if (hasExternalData(a)) {
-    lines.push(`${step++}. **Connect data** — Fetch from ${needsWorkerProxy(a) ? 'Worker' : 'API'}, render real data`);
+    lines.push(
+      `${step++}. **Connect data** — Fetch from ${needsWorkerProxy(a) ? 'Worker' : 'API'}, render real data`,
+    );
   }
 
   if (needsCron(a)) {
@@ -702,7 +780,9 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
   }
 
   lines.push(`${step++}. **Error handling** — API failures, loading states, offline fallback`);
-  lines.push(`${step++}. **Web standards** — favicon, og:image, CSP, meta tags, robots.txt, Lighthouse audit`);
+  lines.push(
+    `${step++}. **Web standards** — favicon, og:image, CSP, meta tags, robots.txt, Lighthouse audit`,
+  );
   lines.push(`${step++}. **Deploy** — Push to GitHub, connect to hosting, verify deployment`);
   lines.push(`${step++}. **Polish** — Lighthouse 90+, accessibility audit, mobile testing`);
 
@@ -716,10 +796,14 @@ function sectionDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): strin
 
   if (needsWorkerProxy(a)) {
     lines.push(`${step++}. **Worker:** \`npx wrangler deploy\` — verify at your Worker URL`);
-    lines.push(`${step++}. **Worker secret:** \`npx wrangler secret put API_KEY\` — enter key when prompted`);
+    lines.push(
+      `${step++}. **Worker secret:** \`npx wrangler secret put API_KEY\` — enter key when prompted`,
+    );
 
     if (tier === 'full') {
-      lines.push(`${step++}. **KV:** Create namespace in Cloudflare dashboard, copy ID, add to \`wrangler.toml\``);
+      lines.push(
+        `${step++}. **KV:** Create namespace in Cloudflare dashboard, copy ID, add to \`wrangler.toml\``,
+      );
       lines.push(`${step++}. **Redeploy Worker** with KV binding: \`npx wrangler deploy\``);
     }
   }
@@ -762,7 +846,9 @@ function sectionPostDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): s
     lines.push('- **Cron health:** Check GitHub Actions runs — failed crons mean stale data.');
   }
 
-  lines.push('- **Adding features:** Ask your AI assistant with this spec as context for guided implementation.');
+  lines.push(
+    '- **Adding features:** Ask your AI assistant with this spec as context for guided implementation.',
+  );
 
   return lines.join('\n');
 }
@@ -789,11 +875,17 @@ function sectionSuggestedPrompt(a: Partial<UserAnswers>, tier: ComplexityTier): 
   lines.push('');
 
   if (tier === 'minimal') {
-    lines.push(`Important: this is a minimal-tier app. ${tierInfo.framework} — no frameworks, no build tools, no server-side components. Keep it simple."`);
+    lines.push(
+      `Important: this is a minimal-tier app. ${tierInfo.framework} — no frameworks, no build tools, no server-side components. Keep it simple."`,
+    );
   } else if (tier === 'standard') {
-    lines.push(`Important: this is a standard-tier app using ${tierInfo.framework}. Follow the architecture decisions in the spec."`);
+    lines.push(
+      `Important: this is a standard-tier app using ${tierInfo.framework}. Follow the architecture decisions in the spec."`,
+    );
   } else {
-    lines.push(`Important: this is a full-tier app with ${tierInfo.framework}. Follow the architecture exactly — caching, cron, and proxy are all needed."`);
+    lines.push(
+      `Important: this is a full-tier app with ${tierInfo.framework}. Follow the architecture exactly — caching, cron, and proxy are all needed."`,
+    );
   }
 
   return lines.join('\n');

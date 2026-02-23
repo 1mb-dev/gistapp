@@ -33,12 +33,7 @@ export type HostingPlatform =
   | 'unsure';
 
 /** Design vibe from Q8 */
-export type DesignVibe =
-  | 'calm'
-  | 'bold'
-  | 'professional'
-  | 'playful'
-  | 'other';
+export type DesignVibe = 'calm' | 'bold' | 'professional' | 'playful' | 'other';
 
 /** Information density from Q8 */
 export type InfoDensity = 'hero' | 'organized' | 'dense';

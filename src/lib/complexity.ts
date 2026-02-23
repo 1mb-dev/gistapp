@@ -41,12 +41,15 @@ export function determineComplexity(answers: Partial<UserAnswers>): ComplexityTi
 }
 
 /** Human-readable description of each tier */
-export const tierDescriptions: Record<ComplexityTier, {
-  label: string;
-  framework: string;
-  description: string;
-  components: string[];
-}> = {
+export const tierDescriptions: Record<
+  ComplexityTier,
+  {
+    label: string;
+    framework: string;
+    description: string;
+    components: string[];
+  }
+> = {
   minimal: {
     label: 'Minimal',
     framework: 'Plain HTML, CSS, and JavaScript',
@@ -57,11 +60,7 @@ export const tierDescriptions: Record<ComplexityTier, {
     label: 'Standard',
     framework: 'Astro (static site generator)',
     description: 'Framework for multi-page routing, plus a Worker if your API needs a proxy.',
-    components: [
-      'Astro static site',
-      'Cloudflare Worker (API proxy)',
-      'GitHub Actions (CI/CD)',
-    ],
+    components: ['Astro static site', 'Cloudflare Worker (API proxy)', 'GitHub Actions (CI/CD)'],
   },
   full: {
     label: 'Full',
@@ -98,6 +97,5 @@ export function needsCron(answers: Partial<UserAnswers>): boolean {
 /** Determine if PWA features should be recommended */
 export function shouldRecommendPWA(answers: Partial<UserAnswers>): boolean {
   const device = answers.deviceTarget === 'unsure' ? 'both' : answers.deviceTarget;
-  return answers.usageFrequency === 'daily' &&
-    (device === 'phone' || device === 'both');
+  return answers.usageFrequency === 'daily' && (device === 'phone' || device === 'both');
 }

@@ -16,20 +16,12 @@ import Base from '../layouts/Base.astro';
         <h1 class="form-title">First, tell us about you</h1>
         <p class="form-subtitle">This helps us adjust the level of detail in your spec.</p>
         <div class="persona-cards" role="radiogroup" aria-label="Select your experience level">
-          <button
-            class="persona-card"
-            data-persona="new-builder"
-            aria-pressed="false"
-          >
+          <button class="persona-card" data-persona="new-builder" aria-pressed="false">
             <span class="persona-icon" aria-hidden="true">&#x1F331;</span>
             <span class="persona-label">I'm new to building apps</span>
             <span class="persona-detail">I'll explain everything clearly, no jargon.</span>
           </button>
-          <button
-            class="persona-card"
-            data-persona="developer"
-            aria-pressed="false"
-          >
+          <button class="persona-card" data-persona="developer" aria-pressed="false">
             <span class="persona-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>
             <span class="persona-label">I'm a developer</span>
             <span class="persona-detail">Technical details, no hand-holding.</span>
@@ -41,7 +33,13 @@ import Base from '../layouts/Base.astro';
     <!-- Phase 2: Question flow -->
     <section id="question-section" class="question-section" hidden>
       <div class="container">
-        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div
+          class="progress-bar"
+          role="progressbar"
+          aria-valuenow="0"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <div class="question-counter" id="question-counter" aria-live="polite"></div>
@@ -69,13 +67,14 @@ import Base from '../layouts/Base.astro';
         </div>
 
         <div class="stack-customize">
-          <label for="stack-notes" class="stack-notes-label">Want to change anything? (optional)</label>
+          <label for="stack-notes" class="stack-notes-label"
+            >Want to change anything? (optional)</label
+          >
           <textarea
             id="stack-notes"
             class="stack-notes"
             rows="3"
-            placeholder="e.g. I'd prefer Vercel over Cloudflare, skip dark mode..."
-          ></textarea>
+            placeholder="e.g. I'd prefer Vercel over Cloudflare, skip dark mode..."></textarea>
         </div>
 
         <div class="nav-actions">
@@ -99,13 +98,33 @@ import Base from '../layouts/Base.astro';
 </Base>
 
 <script>
-  import { questions, getVisibleQuestions, mapOptionToAnswer, resolveQuestion, getAutoDefault } from '../lib/questions';
-  import { determineComplexity, tierDescriptions, needsWorkerProxy, needsCron, shouldRecommendPWA } from '../lib/complexity';
+  import {
+    questions,
+    getVisibleQuestions,
+    mapOptionToAnswer,
+    resolveQuestion,
+    getAutoDefault,
+  } from '../lib/questions';
+  import {
+    determineComplexity,
+    tierDescriptions,
+    needsWorkerProxy,
+    needsCron,
+    shouldRecommendPWA,
+  } from '../lib/complexity';
   import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
 
   // --- State ---
   const saved = sessionStorage.getItem('gist-progress');
-  const answers: Partial<UserAnswers> = saved ? (() => { try { return JSON.parse(saved); } catch { return {}; } })() : {};
+  const answers: Partial<UserAnswers> = saved
+    ? (() => {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      })()
+    : {};
   let visibleQuestions: QuestionDef[] = [];
   let currentIndex = 0;
 
@@ -132,13 +151,13 @@ import Base from '../layouts/Base.astro';
   // --- Persona selection ---
   const personaCards = document.querySelectorAll<HTMLButtonElement>('.persona-card');
 
-  personaCards.forEach(card => {
+  personaCards.forEach((card) => {
     card.addEventListener('click', () => {
       const persona = card.dataset.persona as Persona;
       answers.persona = persona;
       saveProgress();
 
-      personaCards.forEach(c => c.setAttribute('aria-pressed', 'false'));
+      personaCards.forEach((c) => c.setAttribute('aria-pressed', 'false'));
       card.setAttribute('aria-pressed', 'true');
 
       // Brief delay so user sees selection, then advance
@@ -184,7 +203,7 @@ import Base from '../layouts/Base.astro';
     }
 
     // Update progress
-    const progress = Math.round(((currentIndex) / visibleQuestions.length) * 100);
+    const progress = Math.round((currentIndex / visibleQuestions.length) * 100);
     progressFill.style.width = `${progress}%`;
     const progressBar = progressFill.parentElement!;
     progressBar.setAttribute('aria-valuenow', String(progress));
@@ -233,7 +252,8 @@ import Base from '../layouts/Base.astro';
     if (q.id === 'api-details') {
       const note = document.createElement('p');
       note.className = 'question-note';
-      note.textContent = 'This one\'s open-ended \u2014 describe what data your app needs in your own words.';
+      note.textContent =
+        "This one's open-ended \u2014 describe what data your app needs in your own words.";
       questionContainer.appendChild(note);
     }
 
@@ -267,7 +287,7 @@ import Base from '../layouts/Base.astro';
 
       btn.addEventListener('click', () => {
         // Deselect all siblings
-        optionsList.querySelectorAll('.option-card').forEach(c => {
+        optionsList.querySelectorAll('.option-card').forEach((c) => {
           c.classList.remove('selected');
           c.setAttribute('aria-checked', 'false');
         });
@@ -381,7 +401,7 @@ import Base from '../layouts/Base.astro';
     if (q.optional) return true;
 
     if (q.responseMode === 'pick-one') {
-      const mapping = q.options?.find(opt => {
+      const mapping = q.options?.find((opt) => {
         const m = mapOptionToAnswer(q.id, opt.id);
         return m && answers[m.key] !== undefined;
       });
@@ -390,8 +410,8 @@ import Base from '../layouts/Base.astro';
 
     if (q.responseMode === 'multi-field' && q.fields) {
       return q.fields
-        .filter(f => f.required)
-        .every(f => {
+        .filter((f) => f.required)
+        .every((f) => {
           const val = answers[f.key];
           return typeof val === 'string' && val.trim().length > 0;
         });
@@ -556,7 +576,7 @@ import Base from '../layouts/Base.astro';
     transform: translateY(-2px);
   }
 
-  .persona-card[aria-pressed="true"] {
+  .persona-card[aria-pressed='true'] {
     border-color: var(--color-accent);
     box-shadow: var(--shadow-card-hover);
     background: var(--color-accent-subtle);
@@ -710,8 +730,9 @@ import Base from '../layouts/Base.astro';
     background: var(--color-bg);
     color: var(--color-text);
     resize: vertical;
-    transition: border-color var(--duration-fast) var(--easing),
-                box-shadow var(--duration-fast) var(--easing);
+    transition:
+      border-color var(--duration-fast) var(--easing),
+      box-shadow var(--duration-fast) var(--easing);
   }
 
   .free-input:focus {
@@ -749,8 +770,9 @@ import Base from '../layouts/Base.astro';
     font-size: var(--text-base);
     background: var(--color-bg-raised);
     color: var(--color-text);
-    transition: border-color var(--duration-fast) var(--easing),
-                box-shadow var(--duration-fast) var(--easing);
+    transition:
+      border-color var(--duration-fast) var(--easing),
+      box-shadow var(--duration-fast) var(--easing);
   }
 
   .field-input:focus {
@@ -805,9 +827,18 @@ import Base from '../layouts/Base.astro';
     margin-bottom: var(--space-4);
   }
 
-  .tier-minimal { background: var(--color-status-success-bg); color: var(--color-status-success); }
-  .tier-standard { background: var(--color-accent-subtle); color: var(--color-accent); }
-  .tier-full { background: var(--color-status-warning-bg); color: var(--color-status-warning); }
+  .tier-minimal {
+    background: var(--color-status-success-bg);
+    color: var(--color-status-success);
+  }
+  .tier-standard {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+  .tier-full {
+    background: var(--color-status-warning-bg);
+    color: var(--color-status-warning);
+  }
 
   .stack-framework {
     font-family: var(--font-display);
@@ -887,8 +918,9 @@ import Base from '../layouts/Base.astro';
     background: var(--color-bg-raised);
     color: var(--color-text);
     resize: vertical;
-    transition: border-color var(--duration-fast) var(--easing),
-                box-shadow var(--duration-fast) var(--easing);
+    transition:
+      border-color var(--duration-fast) var(--easing),
+      box-shadow var(--duration-fast) var(--easing);
   }
 
   .stack-notes:focus {
@@ -920,7 +952,9 @@ import Base from '../layouts/Base.astro';
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .generating-text {

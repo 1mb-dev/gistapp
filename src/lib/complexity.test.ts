@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { UserAnswers } from './types';
-import {
-  determineComplexity,
-  needsWorkerProxy,
-  needsCron,
-  shouldRecommendPWA,
-} from './complexity';
+import { determineComplexity, needsWorkerProxy, needsCron, shouldRecommendPWA } from './complexity';
 
 describe('determineComplexity', () => {
   it('returns minimal for empty answers', () => {

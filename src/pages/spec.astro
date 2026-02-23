@@ -28,12 +28,8 @@ import Base from '../layouts/Base.astro';
         </div>
 
         <div class="spec-actions-top">
-          <button id="btn-download" class="btn btn-primary" type="button">
-            Download .md
-          </button>
-          <button id="btn-copy" class="btn btn-ghost" type="button">
-            Copy to clipboard
-          </button>
+          <button id="btn-download" class="btn btn-primary" type="button"> Download .md </button>
+          <button id="btn-copy" class="btn btn-ghost" type="button"> Copy to clipboard </button>
         </div>
 
         <div class="spec-preview-window">
@@ -43,16 +39,12 @@ import Base from '../layouts/Base.astro';
             <span class="spec-dot"></span>
             <span class="spec-filename" id="spec-filename"></span>
           </div>
-          <pre class="spec-body" id="spec-body"><code id="spec-code"></code></pre>
+          <pre class="spec-body" id="spec-body"><code id="spec-code" /></pre>
         </div>
 
         <div class="spec-actions-bottom">
-          <button id="btn-download-2" class="btn btn-primary" type="button">
-            Download .md
-          </button>
-          <button id="btn-copy-2" class="btn btn-ghost" type="button">
-            Copy to clipboard
-          </button>
+          <button id="btn-download-2" class="btn btn-primary" type="button"> Download .md </button>
+          <button id="btn-copy-2" class="btn btn-ghost" type="button"> Copy to clipboard </button>
         </div>
       </div>
     </section>
@@ -81,7 +73,10 @@ import Base from '../layouts/Base.astro';
             <span class="step-number">3</span>
             <div class="step-content">
               <h3>Use the suggested prompt</h3>
-              <p>Your spec includes a ready-made prompt at the bottom. Copy and paste it to get started.</p>
+              <p>
+                Your spec includes a ready-made prompt at the bottom. Copy and paste it to get
+                started.
+              </p>
             </div>
           </li>
         </ol>
@@ -153,118 +148,126 @@ import Base from '../layouts/Base.astro';
       const title = noAnswers.querySelector('.page-title');
       if (title) title.textContent = 'Something went wrong';
       const subtitle = noAnswers.querySelector('.page-subtitle');
-      if (subtitle) subtitle.textContent = 'Your answers couldn\u2019t be loaded. Please try creating your spec again.';
+      if (subtitle)
+        subtitle.textContent =
+          'Your answers couldn\u2019t be loaded. Please try creating your spec again.';
       sessionStorage.removeItem('gist-answers');
     }
 
     if (answers) {
-    const spec = generateSpec(answers);
-    const filename = generateFilename(answers);
-    const tier = determineComplexity(answers);
-    const tierInfo = tierDescriptions[tier];
+      const spec = generateSpec(answers);
+      const filename = generateFilename(answers);
+      const tier = determineComplexity(answers);
+      const tierInfo = tierDescriptions[tier];
 
-    // Show sections
-    specSection.hidden = false;
-    whatsNext.hidden = false;
-    feedbackSection.hidden = false;
-    startOver.hidden = false;
+      // Show sections
+      specSection.hidden = false;
+      whatsNext.hidden = false;
+      feedbackSection.hidden = false;
+      startOver.hidden = false;
 
-    // Populate spec title and meta
-    const specTitle = document.getElementById('spec-title')!;
-    specTitle.textContent = `${answers.title ?? 'Your'} spec`;
+      // Populate spec title and meta
+      const specTitle = document.getElementById('spec-title')!;
+      specTitle.textContent = `${answers.title ?? 'Your'} spec`;
 
-    const metaLine = document.getElementById('spec-meta-line')!;
-    metaLine.textContent = `${tierInfo.label} tier \u00b7 ${tierInfo.framework}`;
+      const metaLine = document.getElementById('spec-meta-line')!;
+      metaLine.textContent = `${tierInfo.label} tier \u00b7 ${tierInfo.framework}`;
 
-    // Filename
-    const filenameEl = document.getElementById('spec-filename')!;
-    filenameEl.textContent = filename;
+      // Filename
+      const filenameEl = document.getElementById('spec-filename')!;
+      filenameEl.textContent = filename;
 
-    // Spec body
-    const specCode = document.getElementById('spec-code')!;
-    specCode.textContent = spec;
+      // Spec body
+      const specCode = document.getElementById('spec-code')!;
+      specCode.textContent = spec;
 
-    // Extract suggested prompt for the prompt preview
-    const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
-    const promptBox = document.getElementById('prompt-box')!;
-    if (promptMatch) {
-      promptBox.textContent = promptMatch[1];
-    } else {
-      promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
-    }
-
-    // --- Actions ---
-
-    function downloadSpec() {
-      const blob = new Blob([spec], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    async function copySpec(button: HTMLButtonElement) {
-      try {
-        await navigator.clipboard.writeText(spec);
-        const original = button.textContent;
-        button.textContent = 'Copied!';
-        setTimeout(() => { button.textContent = original; }, 2000);
-      } catch {
-        // Fallback: select the spec text
-        const range = document.createRange();
-        range.selectNodeContents(specCode);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
+      // Extract suggested prompt for the prompt preview
+      const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
+      const promptBox = document.getElementById('prompt-box')!;
+      if (promptMatch) {
+        promptBox.textContent = promptMatch[1];
+      } else {
+        promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
       }
-    }
 
-    // Download buttons
-    document.getElementById('btn-download')!.addEventListener('click', downloadSpec);
-    document.getElementById('btn-download-2')!.addEventListener('click', downloadSpec);
+      // --- Actions ---
 
-    // Copy buttons
-    const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
-    const btnCopy2 = document.getElementById('btn-copy-2') as HTMLButtonElement;
-    btnCopy.addEventListener('click', () => copySpec(btnCopy));
-    btnCopy2.addEventListener('click', () => copySpec(btnCopy2));
-
-    // Copy prompt
-    const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
-    btnCopyPrompt.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(promptBox.textContent ?? '');
-        const original = btnCopyPrompt.textContent;
-        btnCopyPrompt.textContent = 'Copied!';
-        setTimeout(() => { btnCopyPrompt.textContent = original; }, 2000);
-      } catch {
-        // Silent fallback
+      function downloadSpec() {
+        const blob = new Blob([spec], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
       }
-    });
 
-    // Feedback
-    const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
-    const feedbackThanks = document.getElementById('feedback-thanks')!;
-
-    feedbackBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const feedback = btn.dataset.feedback;
-        // Store locally (no server for MVP)
+      async function copySpec(button: HTMLButtonElement) {
         try {
-          const existing = JSON.parse(localStorage.getItem('gist-feedback') ?? '[]');
-          existing.push({ feedback, timestamp: new Date().toISOString(), tier });
-          localStorage.setItem('gist-feedback', JSON.stringify(existing));
+          await navigator.clipboard.writeText(spec);
+          const original = button.textContent;
+          button.textContent = 'Copied!';
+          setTimeout(() => {
+            button.textContent = original;
+          }, 2000);
         } catch {
-          // Silent — feedback is optional
+          // Fallback: select the spec text
+          const range = document.createRange();
+          range.selectNodeContents(specCode);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
         }
+      }
 
-        feedbackBtns.forEach(b => { b.disabled = true; });
-        feedbackThanks.hidden = false;
+      // Download buttons
+      document.getElementById('btn-download')!.addEventListener('click', downloadSpec);
+      document.getElementById('btn-download-2')!.addEventListener('click', downloadSpec);
+
+      // Copy buttons
+      const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
+      const btnCopy2 = document.getElementById('btn-copy-2') as HTMLButtonElement;
+      btnCopy.addEventListener('click', () => copySpec(btnCopy));
+      btnCopy2.addEventListener('click', () => copySpec(btnCopy2));
+
+      // Copy prompt
+      const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
+      btnCopyPrompt.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(promptBox.textContent ?? '');
+          const original = btnCopyPrompt.textContent;
+          btnCopyPrompt.textContent = 'Copied!';
+          setTimeout(() => {
+            btnCopyPrompt.textContent = original;
+          }, 2000);
+        } catch {
+          // Silent fallback
+        }
       });
-    });
-  } /* end if(answers) */
+
+      // Feedback
+      const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
+      const feedbackThanks = document.getElementById('feedback-thanks')!;
+
+      feedbackBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const feedback = btn.dataset.feedback;
+          // Store locally (no server for MVP)
+          try {
+            const existing = JSON.parse(localStorage.getItem('gist-feedback') ?? '[]');
+            existing.push({ feedback, timestamp: new Date().toISOString(), tier });
+            localStorage.setItem('gist-feedback', JSON.stringify(existing));
+          } catch {
+            // Silent — feedback is optional
+          }
+
+          feedbackBtns.forEach((b) => {
+            b.disabled = true;
+          });
+          feedbackThanks.hidden = false;
+        });
+      });
+    } /* end if(answers) */
   }
 </script>
 
@@ -343,9 +346,18 @@ import Base from '../layouts/Base.astro';
     border-radius: var(--radius-full);
   }
 
-  .spec-dot:nth-child(1) { background: #e5534b; opacity: 0.65; }
-  .spec-dot:nth-child(2) { background: #d4a72c; opacity: 0.65; }
-  .spec-dot:nth-child(3) { background: #3fb950; opacity: 0.65; }
+  .spec-dot:nth-child(1) {
+    background: #e5534b;
+    opacity: 0.65;
+  }
+  .spec-dot:nth-child(2) {
+    background: #d4a72c;
+    opacity: 0.65;
+  }
+  .spec-dot:nth-child(3) {
+    background: #3fb950;
+    opacity: 0.65;
+  }
 
   .spec-filename {
     margin-left: var(--space-3);
