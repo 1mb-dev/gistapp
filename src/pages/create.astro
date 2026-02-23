@@ -99,7 +99,7 @@ import Base from '../layouts/Base.astro';
 </Base>
 
 <script>
-  import { questions, getVisibleQuestions, mapOptionToAnswer } from '../lib/questions';
+  import { questions, getVisibleQuestions, mapOptionToAnswer, resolveQuestion, getAutoDefault } from '../lib/questions';
   import { determineComplexity, tierDescriptions, needsWorkerProxy, needsCron, shouldRecommendPWA } from '../lib/complexity';
   import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
 
@@ -156,7 +156,17 @@ import Base from '../layouts/Base.astro';
       return;
     }
 
-    const q = visibleQuestions[currentIndex];
+    const rawQ = visibleQuestions[currentIndex];
+    const q = resolveQuestion(rawQ, answers.persona);
+
+    // Apply auto-default if answer not yet set
+    const autoDefault = getAutoDefault(rawQ.id, answers.persona);
+    if (autoDefault) {
+      const mapping = mapOptionToAnswer(rawQ.id, autoDefault);
+      if (mapping && answers[mapping.key] === undefined) {
+        (answers as Record<string, string>)[mapping.key] = mapping.value;
+      }
+    }
 
     // Update progress
     const progress = Math.round(((currentIndex) / visibleQuestions.length) * 100);
