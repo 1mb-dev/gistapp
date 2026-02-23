@@ -125,6 +125,7 @@ import SiteHeader from '../components/SiteHeader.astro';
   import { generateSpec, generateFilename } from '../lib/generator';
   import type { UserAnswers } from '../lib/types';
   import { determineComplexity, tierDescriptions } from '../lib/complexity';
+  import { track } from '../lib/insights';
 
   // --- Load answers from sessionStorage ---
   const raw = sessionStorage.getItem('gist-answers');
@@ -189,7 +190,8 @@ import SiteHeader from '../components/SiteHeader.astro';
 
       // --- Actions ---
 
-      function downloadSpec() {
+      function downloadSpec(): void {
+        track('spec_downloaded', { tier });
         const blob = new Blob([spec], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -199,7 +201,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         URL.revokeObjectURL(url);
       }
 
-      async function copySpec(button: HTMLButtonElement) {
+      async function copySpec(button: HTMLButtonElement): Promise<void> {
+        track('spec_copied', { tier });
         try {
           await navigator.clipboard.writeText(spec);
           const original = button.textContent;
@@ -230,6 +233,7 @@ import SiteHeader from '../components/SiteHeader.astro';
       // Copy prompt
       const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
       btnCopyPrompt.addEventListener('click', async () => {
+        track('prompt_copied', { tier });
         try {
           await navigator.clipboard.writeText(promptBox.textContent ?? '');
           const original = btnCopyPrompt.textContent;
@@ -238,7 +242,16 @@ import SiteHeader from '../components/SiteHeader.astro';
             btnCopyPrompt.textContent = original;
           }, 2000);
         } catch {
-          // Silent fallback
+          // Fallback: select the text so user can Cmd+C / Ctrl+C
+          const range = document.createRange();
+          range.selectNodeContents(promptBox);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+          btnCopyPrompt.textContent = 'Select and copy manually';
+          setTimeout(() => {
+            btnCopyPrompt.textContent = 'Copy prompt';
+          }, 3000);
         }
       });
 
@@ -249,13 +262,15 @@ import SiteHeader from '../components/SiteHeader.astro';
       feedbackBtns.forEach((btn) => {
         btn.addEventListener('click', () => {
           const feedback = btn.dataset.feedback;
-          // Store locally (no server for MVP)
+          track('feedback', { feedback: feedback ?? '', tier });
+          // Store locally as fallback
           try {
             const existing = JSON.parse(localStorage.getItem('gist-feedback') ?? '[]');
             existing.push({ feedback, timestamp: new Date().toISOString(), tier });
             localStorage.setItem('gist-feedback', JSON.stringify(existing));
           } catch {
-            // Silent — feedback is optional
+            // Reset corrupt data so future feedback can be stored
+            localStorage.removeItem('gist-feedback');
           }
 
           feedbackBtns.forEach((b) => {

@@ -110,6 +110,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     shouldRecommendPWA,
   } from '../lib/complexity';
   import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
+  import { track } from '../lib/insights';
 
   // --- State ---
   const saved = sessionStorage.getItem('gist-progress');
@@ -118,6 +119,7 @@ import SiteHeader from '../components/SiteHeader.astro';
         try {
           return JSON.parse(saved);
         } catch {
+          sessionStorage.removeItem('gist-progress');
           return {};
         }
       })()
@@ -152,6 +154,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     card.addEventListener('click', () => {
       const persona = card.dataset.persona as Persona;
       answers.persona = persona;
+      track('persona_selected', { persona });
       saveProgress();
 
       personaCards.forEach((c) => c.setAttribute('aria-pressed', 'false'));
@@ -410,6 +413,14 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   // --- Navigation ---
   function advance() {
+    const completed = visibleQuestions[currentIndex];
+    if (completed) {
+      track('question_completed', {
+        questionId: completed.id,
+        stepIndex: currentIndex,
+        totalSteps: visibleQuestions.length,
+      });
+    }
     currentIndex++;
     renderQuestion();
   }
@@ -423,7 +434,13 @@ import SiteHeader from '../components/SiteHeader.astro';
     }
   });
 
-  btnSkip.addEventListener('click', advance);
+  btnSkip.addEventListener('click', () => {
+    const currentQuestion = visibleQuestions[currentIndex];
+    if (currentQuestion) {
+      track('question_skipped', { questionId: currentQuestion.id, persona: answers.persona ?? '' });
+    }
+    advance();
+  });
 
   // --- Stack confirmation ---
   function showStackConfirmation() {
@@ -496,6 +513,12 @@ import SiteHeader from '../components/SiteHeader.astro';
   btnGenerate.addEventListener('click', () => {
     answers.stackConfirmed = true;
     answers.stackCustomizations = stackNotes.value.trim() || undefined;
+
+    track('spec_generated', {
+      persona: answers.persona ?? '',
+      tier: determineComplexity(answers),
+      questionCount: visibleQuestions.length,
+    });
 
     stackSection.hidden = true;
     generatingSection.hidden = false;

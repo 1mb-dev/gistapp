@@ -1,0 +1,354 @@
+---
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+---
+
+<Base title="Admin — Gist" description="Gist analytics dashboard" noindex>
+  <SiteHeader />
+
+  <main id="main-content">
+    <section class="admin-section">
+      <div class="container">
+        <h1 class="admin-title">Insights</h1>
+
+        <div id="auth-form" class="auth-form">
+          <label for="admin-token" class="field-label">Admin token</label>
+          <div class="auth-row">
+            <input
+              type="password"
+              id="admin-token"
+              class="field-input"
+              placeholder="Enter your admin token"
+              autocomplete="off"
+            />
+            <button id="btn-load" class="btn btn-primary" type="button">Load stats</button>
+          </div>
+        </div>
+
+        <div id="loading" class="loading-state" hidden>
+          <div class="spinner"></div>
+          <p>Loading stats...</p>
+        </div>
+
+        <div id="error-state" class="error-state" hidden>
+          <p id="error-message"></p>
+          <button id="btn-retry" class="btn btn-ghost" type="button">Try again</button>
+        </div>
+
+        <div id="empty-state" class="empty-state" hidden>
+          <p>No data yet. Events will appear here once users interact with Gist.</p>
+        </div>
+
+        <div id="stats-container" class="stats-container" hidden>
+          <div class="stats-grid">
+            <div class="stat-card" id="card-funnel">
+              <h2 class="stat-title">Funnel</h2>
+              <table class="stat-table" id="table-funnel">
+                <thead>
+                  <tr><th>Date</th><th>Persona</th><th>Generated</th><th>Downloaded</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="stat-card" id="card-tiers">
+              <h2 class="stat-title">Tier distribution</h2>
+              <table class="stat-table" id="table-tiers">
+                <thead>
+                  <tr><th>Date</th><th>Minimal</th><th>Standard</th><th>Full</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="stat-card" id="card-feedback">
+              <h2 class="stat-title">Feedback</h2>
+              <table class="stat-table" id="table-feedback">
+                <thead>
+                  <tr><th>Date</th><th>Great</th><th>Okay</th><th>Needs work</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="stat-card" id="card-actions">
+              <h2 class="stat-title">Actions</h2>
+              <table class="stat-table" id="table-actions">
+                <thead>
+                  <tr><th>Date</th><th>Downloaded</th><th>Copied</th><th>Prompt copied</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<script>
+  import { INSIGHTS_URL } from '../lib/config';
+
+  const tokenInput = document.getElementById('admin-token') as HTMLInputElement;
+  const btnLoad = document.getElementById('btn-load') as HTMLButtonElement;
+  const btnRetry = document.getElementById('btn-retry') as HTMLButtonElement;
+  const loading = document.getElementById('loading')!;
+  const errorState = document.getElementById('error-state')!;
+  const errorMessage = document.getElementById('error-message')!;
+  const emptyState = document.getElementById('empty-state')!;
+  const statsContainer = document.getElementById('stats-container')!;
+  const authForm = document.getElementById('auth-form')!;
+
+  type StatsResponse = Record<string, Record<string, number>>;
+
+  function get(day: Record<string, number> | undefined, key: string): number {
+    return day?.[key] ?? 0;
+  }
+
+  function populateTable(
+    tableId: string,
+    dates: string[],
+    data: StatsResponse,
+    columns: { key: string }[],
+  ): void {
+    const tbody = document.querySelector(`#${tableId} tbody`)!;
+    tbody.replaceChildren();
+
+    for (const date of dates) {
+      const row = document.createElement('tr');
+      const dateCell = document.createElement('td');
+      dateCell.textContent = date;
+      row.appendChild(dateCell);
+
+      for (const col of columns) {
+        const cell = document.createElement('td');
+        cell.textContent = String(get(data[date], col.key));
+        row.appendChild(cell);
+      }
+      tbody.appendChild(row);
+    }
+  }
+
+  function renderStats(data: StatsResponse): void {
+    const dates = Object.keys(data).sort().reverse();
+
+    if (dates.length === 0) {
+      emptyState.hidden = false;
+      statsContainer.hidden = true;
+      return;
+    }
+
+    emptyState.hidden = true;
+    statsContainer.hidden = false;
+
+    populateTable('table-funnel', dates, data, [
+      { key: 'persona_selected' },
+      { key: 'spec_generated' },
+      { key: 'spec_downloaded' },
+    ]);
+
+    populateTable('table-tiers', dates, data, [
+      { key: 'spec_generated:minimal' },
+      { key: 'spec_generated:standard' },
+      { key: 'spec_generated:full' },
+    ]);
+
+    populateTable('table-feedback', dates, data, [
+      { key: 'feedback:great' },
+      { key: 'feedback:okay' },
+      { key: 'feedback:needs-work' },
+    ]);
+
+    populateTable('table-actions', dates, data, [
+      { key: 'spec_downloaded' },
+      { key: 'spec_copied' },
+      { key: 'prompt_copied' },
+    ]);
+  }
+
+  async function loadStats(): Promise<void> {
+    const token = tokenInput.value.trim();
+    if (!token) {
+      tokenInput.focus();
+      return;
+    }
+
+    loading.hidden = false;
+    errorState.hidden = true;
+    emptyState.hidden = true;
+    statsContainer.hidden = true;
+
+    try {
+      const res = await fetch(`${INSIGHTS_URL}/api/stats?days=14`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        throw new Error('Invalid token. Check your admin token and try again.');
+      }
+
+      if (!res.ok) {
+        throw new Error(`Server error (${res.status}). Try again later.`);
+      }
+
+      const data: StatsResponse = await res.json();
+      renderStats(data);
+      authForm.hidden = true;
+    } catch (err) {
+      errorState.hidden = false;
+      if (err instanceof TypeError) {
+        errorMessage.textContent =
+          'Could not reach the analytics server. Check your connection and verify the worker is deployed.';
+      } else if (err instanceof SyntaxError) {
+        errorMessage.textContent =
+          'Received an unexpected response from the server. The worker may be misconfigured.';
+      } else {
+        errorMessage.textContent =
+          err instanceof Error ? err.message : 'Failed to load stats. Check your connection.';
+      }
+    } finally {
+      loading.hidden = true;
+    }
+  }
+
+  btnLoad.addEventListener('click', loadStats);
+  btnRetry.addEventListener('click', () => {
+    errorState.hidden = true;
+    authForm.hidden = false;
+    tokenInput.focus();
+  });
+
+  tokenInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') loadStats();
+  });
+</script>
+
+<style is:global>
+  .admin-section {
+    padding: var(--space-8) 0 var(--space-20);
+  }
+
+  .admin-title {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-8);
+  }
+
+  .auth-form {
+    max-width: 480px;
+    margin-bottom: var(--space-8);
+  }
+
+  .auth-row {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+
+  .auth-row .field-input {
+    flex: 1;
+  }
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-8) 0;
+    color: var(--color-text-secondary);
+  }
+
+  .loading-state .spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: var(--radius-full);
+    animation: spin 0.9s linear infinite;
+  }
+
+  .error-state {
+    padding: var(--space-6);
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border-subtle);
+    border-left: 3px solid var(--color-status-error, #e5534b);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-8);
+  }
+
+  .error-state p {
+    color: var(--color-status-error, #e5534b);
+    margin-bottom: var(--space-3);
+  }
+
+  .empty-state {
+    padding: var(--space-12) 0;
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .stats-grid {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .stat-card {
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-card);
+    overflow-x: auto;
+  }
+
+  .stat-title {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-4);
+  }
+
+  .stat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .stat-table th {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border-subtle);
+    color: var(--color-text-muted);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .stat-table td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border-subtle);
+    white-space: nowrap;
+  }
+
+  .stat-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  @media (min-width: 768px) {
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loading-state .spinner {
+      animation: none;
+      opacity: 0.6;
+    }
+  }
+</style>

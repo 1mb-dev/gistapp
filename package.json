@@ -1,7 +1,7 @@
 {
   "name": "gistapp",
   "type": "module",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "engines": {
     "node": ">=18"
@@ -15,7 +15,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "astro check",
-    "lint": "prettier --check . && astro check"
+    "lint": "prettier --check . && astro check",
+    "worker:dev": "cd worker && npx wrangler dev",
+    "worker:deploy": "cd worker && npx wrangler deploy",
+    "worker:test": "vitest run worker/"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.0",
@@ -26,6 +29,8 @@
     "prettier": "^3.8.1",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "vitest": "^4.0.18",
+    "wrangler": "^4.0.0"
   }
 }

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-XX
+
+### Added
+
+- Insights tracking module (`src/lib/insights.ts`) — fire-and-forget sendBeacon
+- Funnel event tracking: persona selection, question flow, spec generation, downloads, copies, feedback
+- Gist Insights Worker (Cloudflare Workers + KV) for custom event collection
+- Admin page (`/admin`) for viewing funnel stats (noindex, token-protected)
+- Worker deploy workflow (`.github/workflows/deploy-worker.yml`)
+
+### Changed
+
+- CSP: added Worker URL to connect-src
+- Feedback: now beacons to Worker in addition to localStorage
+- Monitoring: add UptimeRobot HTTP monitor for Worker health (`/api/event` endpoint)
+- Service worker: bumped cache version to gist-v4
+
+## [1.0.1] - 2026-02-24
+
+### Changed
+
+- Hosting: migrated from GitHub Pages to Cloudflare Pages
+- Added Cloudflare Web Analytics (privacy-first, no cookies, auto-injected)
+- CSP: added CF Web Analytics domains to script-src and connect-src
+- CSP: added `_headers` file for CF Pages (meta tag kept as fallback)
+- Deploy workflow: simplified to release-only (CF Pages handles deploys)
+- Monitoring: add UptimeRobot HTTP monitor for `https://gist.1mb.dev`
+- Service worker: bumped cache version to gist-v3
+
+### Removed
+
+- GitHub Pages CNAME file
+- GitHub Pages deploy job from CI
+
 ## [1.0.0] - 2026-02-24
 
 ### Added

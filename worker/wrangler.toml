@@ -1,0 +1,14 @@
+name = "gist-insights"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = false
+invocation_logs = true
+
+[[kv_namespaces]]
+binding = "INSIGHTS"
+id = "01c6d2eade5e4fef9045776917ec3318"

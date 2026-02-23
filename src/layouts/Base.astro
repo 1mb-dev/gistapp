@@ -2,11 +2,13 @@
 interface Props {
   title: string;
   description?: string;
+  noindex?: boolean;
 }
 
 const {
   title,
   description = 'Describe your app idea, answer a few questions, get a spec your AI assistant can build from.',
+  noindex = false,
 } = Astro.props;
 
 const siteName = 'Gist';
@@ -26,7 +28,7 @@ const ogImageURL = new URL('/og-image.svg', Astro.site);
 
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self';"
+      content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com https://gist-insights.gist-483.workers.dev;"
     />
 
     <meta property="og:title" content={fullTitle} />
@@ -48,6 +50,7 @@ const ogImageURL = new URL('/og-image.svg', Astro.site);
     <link rel="canonical" href={canonicalURL} />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
+    {noindex && <meta name="robots" content="noindex" />}
     <title>{fullTitle}</title>
   </head>
   <body>
