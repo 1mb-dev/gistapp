@@ -206,8 +206,8 @@ export default {
         });
       }
 
-      if (url.pathname === '/health' && request.method === 'GET') {
-        return new Response('ok', { status: 200 });
+      if (url.pathname === '/health' && (request.method === 'GET' || request.method === 'HEAD')) {
+        return new Response(request.method === 'HEAD' ? null : 'ok', { status: 200 });
       }
 
       if (url.pathname === '/api/event' && request.method === 'POST') {
