@@ -33,6 +33,7 @@ Gist is a static Astro site deployed to Cloudflare Pages.
 - **Styling:** Vanilla CSS with custom properties — no framework dependencies
 - **Logic:** TypeScript modules handle question routing, complexity detection, and spec generation
 - **Hosting:** Cloudflare Pages (zero cost, global CDN)
+- **Analytics:** Cloudflare Web Analytics + custom Insights Worker with KV counters
 
 Three core modules drive the product:
 
@@ -67,24 +68,28 @@ npm run build
 
 ### Scripts
 
-| Command           | What it does                                      |
-| ----------------- | ------------------------------------------------- |
-| `npm run dev`     | Start Astro dev server                            |
-| `npm test`        | Run Vitest unit tests                             |
-| `npm run lint`    | Check formatting (Prettier) + types (astro check) |
-| `npm run format`  | Auto-format all files                             |
-| `npm run check`   | Type-check Astro files                            |
-| `npm run build`   | Production build to `dist/`                       |
-| `npm run preview` | Preview production build locally                  |
+| Command              | What it does                                      |
+| -------------------- | ------------------------------------------------- |
+| `npm run dev`        | Start Astro dev server                            |
+| `npm test`           | Run all tests (site + worker)                     |
+| `npm run lint`       | Check formatting (Prettier) + types (astro check) |
+| `npm run format`     | Auto-format all files                             |
+| `npm run check`      | Type-check Astro files                            |
+| `npm run build`      | Production build to `dist/`                       |
+| `npm run preview`    | Preview production build locally                  |
+| `npm run worker:dev` | Start Insights Worker dev server                  |
 
 ### Project Structure
 
 ```
 src/
   layouts/Base.astro       # HTML shell, meta tags, asset links
-  pages/                   # Routes: index, create, spec, 404
+  pages/                   # Routes: index, create, spec, admin, 404
   styles/                  # Design tokens, reset, global styles, fonts
-  lib/                     # TypeScript: questions, complexity, generator, types
+  lib/                     # TypeScript: questions, complexity, generator, insights, types
+worker/
+  src/index.ts             # Insights Worker (event ingestion, stats API)
+  wrangler.toml            # Cloudflare Worker config + KV binding
 public/                    # Static assets: favicon, OG image, service worker, fonts
 ```
 
@@ -94,6 +99,7 @@ public/                    # Static assets: favicon, OG image, service worker, f
 - [Design System](docs/design-system.md) — Tokens, typography, color, dark mode
 - [Spec Generation](docs/spec-generation.md) — How specs are assembled from answers
 - [Contributing](docs/contributing.md) — Setup, conventions, how to submit changes
+- [Changelog](CHANGELOG.md) — Release history
 
 ## License
 

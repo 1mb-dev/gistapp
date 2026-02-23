@@ -18,10 +18,14 @@ The dev server starts at `http://localhost:4321` (or the next available port). A
 ```
 src/
   layouts/Base.astro         # HTML shell shared by all pages
-  pages/                     # Routes — index, create, spec, 404
+  pages/                     # Routes — index, create, spec, admin, 404
   styles/                    # tokens.css, reset.css, global.css, fonts.css
-  lib/                       # Core logic — questions, complexity, generator, types
+  lib/                       # Core logic — questions, complexity, generator, insights, types
     *.test.ts                # Vitest unit tests alongside source
+worker/
+  src/index.ts               # Insights Worker (event ingestion, stats API)
+  src/index.test.ts          # Worker unit tests
+  wrangler.toml              # Cloudflare Worker config + KV binding
 public/                      # Static assets — favicon, OG image, fonts, service worker
 docs/                        # Project documentation
 ```
@@ -38,23 +42,26 @@ docs/                        # Project documentation
 
 ## Commands
 
-| Command          | Purpose                   |
-| ---------------- | ------------------------- |
-| `npm run dev`    | Start dev server          |
-| `npm test`       | Run unit tests (Vitest)   |
-| `npm run lint`   | Check formatting + types  |
-| `npm run format` | Auto-format with Prettier |
-| `npm run build`  | Production build          |
+| Command               | Purpose                       |
+| --------------------- | ----------------------------- |
+| `npm run dev`         | Start dev server              |
+| `npm test`            | Run all tests (site + worker) |
+| `npm run lint`        | Check formatting + types      |
+| `npm run format`      | Auto-format with Prettier     |
+| `npm run build`       | Production build              |
+| `npm run worker:dev`  | Start Worker dev server       |
+| `npm run worker:test` | Run Worker tests only         |
 
 ## Running Tests
 
-Tests cover the three core logic modules:
+Tests cover the core logic modules and the Insights Worker:
 
 ```bash
-npm test
+npm test           # all tests (75 total)
+npm run worker:test  # worker tests only
 ```
 
-Test files live next to their source files (`complexity.test.ts`, `generator.test.ts`, `questions.test.ts`). They test pure functions — no DOM, no browser, no mocking.
+Site test files live next to their source files (`complexity.test.ts`, `generator.test.ts`, `questions.test.ts`) and test pure functions. Worker tests (`worker/src/index.test.ts`) use mock KV bindings to test HTTP handlers.
 
 ## Making Changes
 
@@ -76,10 +83,10 @@ Gist generates specs. It doesn't implement them. Changes should serve one of the
 
 ## What Doesn't Belong
 
-- Server-side logic (Gist is a static site)
 - CSS frameworks or UI libraries
 - Features that expand scope beyond spec generation
 - Dependencies without clear justification
+- New server-side endpoints beyond analytics (the Worker exists for insights only)
 
 ## License
 

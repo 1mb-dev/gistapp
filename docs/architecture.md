@@ -74,6 +74,14 @@ Sections are conditionally included based on answers. A minimal personal app get
 
 Shared TypeScript types used across all modules. Defines the `UserAnswers` interface (the complete set of form responses), `ComplexityTier`, `QuestionDef`, `PersonaOverlay`, and related types. Strict mode enforced — no `any`.
 
+### `config.ts` — Shared Configuration
+
+Single source of truth for the Insights Worker URL. Imported by both `insights.ts` (client-side beacons) and the admin page (stats fetch).
+
+### `insights.ts` — Event Tracking
+
+Fire-and-forget analytics via `navigator.sendBeacon`. Sends events to the Insights Worker as `text/plain` JSON blobs (avoids CORS preflight). Silent in production on failure — tracking is non-critical. Logs warnings in dev mode.
+
 ## Pages
 
 | Route     | File                     | Purpose                                                            |
@@ -81,6 +89,7 @@ Shared TypeScript types used across all modules. Defines the `UserAnswers` inter
 | `/`       | `src/pages/index.astro`  | Landing page — explains what Gist does, links to the question flow |
 | `/create` | `src/pages/create.astro` | Question flow — stepped form, progress indicator, all client-side  |
 | `/spec`   | `src/pages/spec.astro`   | Spec preview — renders generated markdown, download button         |
+| `/admin`  | `src/pages/admin.astro`  | Token-protected analytics dashboard (noindex)                      |
 | `/404`    | `src/pages/404.astro`    | Custom 404 with navigation back to home                            |
 
 All pages share a common layout (`src/layouts/Base.astro`) that provides the HTML shell, meta tags, and asset references.
@@ -96,15 +105,32 @@ Vanilla CSS with no framework dependencies. The design system is token-based:
 
 Dark mode is automatic via `prefers-color-scheme`. Reduced motion is respected via `prefers-reduced-motion`. See [Design System](design-system.md) for token details.
 
+## Insights Worker
+
+A Cloudflare Worker (`worker/`) collects product analytics via KV counters. It's a separate deployment from the static site.
+
+| Endpoint     | Method | Auth         | Purpose                                 |
+| ------------ | ------ | ------------ | --------------------------------------- |
+| `/`          | GET    | None         | Service identity (monitoring)           |
+| `/health`    | GET    | None         | Health check (UptimeRobot)              |
+| `/api/event` | POST   | None         | Event ingestion (sendBeacon from pages) |
+| `/api/stats` | GET    | Bearer token | Admin stats (used by `/admin` page)     |
+
+Events are validated against an allowlist. KV keys use date-prefixed counters (`2026-02-24:persona_selected:developer`). Dimensional values are sanitized to prevent key injection.
+
+Free tier constraints: ~300–1000 events/day (1K KV writes/day limit). Rate limiting is not implemented — acceptable at current traffic.
+
 ## Build & Deploy
 
-Astro builds the site to static files in `dist/`. The `@astrojs/sitemap` integration generates a sitemap automatically. Cloudflare Pages deploys on push to the main branch.
+Astro builds the site to static files in `dist/`. The `@astrojs/sitemap` integration generates a sitemap automatically. Cloudflare Pages deploys via `wrangler pages deploy` on release publish.
 
 ```
-npm run build → dist/ → Cloudflare Pages CDN
+npm run build → dist/ → wrangler pages deploy → Cloudflare Pages CDN
 ```
 
-No server-side rendering. No edge functions. No database connections. The deployed artifact is HTML, CSS, JS, and static assets.
+The Worker deploys separately via `wrangler deploy` from the `worker/` directory.
+
+No server-side rendering. No database connections. The static site is HTML, CSS, JS, and static assets. The Worker is the only server-side component.
 
 ## Offline Support
 
