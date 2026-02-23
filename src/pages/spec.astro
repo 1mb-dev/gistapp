@@ -1,0 +1,569 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Your spec — Gist">
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo" aria-label="Gist home">Gist</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- No answers state -->
+    <section id="no-answers" class="no-answers-section" hidden>
+      <div class="container">
+        <h1 class="page-title">No spec to show</h1>
+        <p class="page-subtitle">You haven't completed the questions yet.</p>
+        <a href="/create" class="btn btn-primary">Start creating your spec</a>
+      </div>
+    </section>
+
+    <!-- Spec preview -->
+    <section id="spec-preview-section" class="spec-preview-section" hidden>
+      <div class="container">
+        <div class="spec-header">
+          <h1 class="page-title" id="spec-title">Your spec</h1>
+          <p class="spec-meta" id="spec-meta-line"></p>
+        </div>
+
+        <div class="spec-actions-top">
+          <button id="btn-download" class="btn btn-primary" type="button">
+            Download .md
+          </button>
+          <button id="btn-copy" class="btn btn-ghost" type="button">
+            Copy to clipboard
+          </button>
+        </div>
+
+        <div class="spec-preview-window">
+          <div class="spec-preview-bar">
+            <span class="spec-dot"></span>
+            <span class="spec-dot"></span>
+            <span class="spec-dot"></span>
+            <span class="spec-filename" id="spec-filename"></span>
+          </div>
+          <pre class="spec-body" id="spec-body"><code id="spec-code"></code></pre>
+        </div>
+
+        <div class="spec-actions-bottom">
+          <button id="btn-download-2" class="btn btn-primary" type="button">
+            Download .md
+          </button>
+          <button id="btn-copy-2" class="btn btn-ghost" type="button">
+            Copy to clipboard
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's Next -->
+    <section id="whats-next" class="whats-next-section" hidden>
+      <div class="container">
+        <h2 class="section-title">What's next</h2>
+
+        <ol class="next-steps">
+          <li class="next-step">
+            <span class="step-number">1</span>
+            <div class="step-content">
+              <h3>Open your AI assistant</h3>
+              <p>Claude, Cursor, Codex, or your preferred AI coding tool.</p>
+            </div>
+          </li>
+          <li class="next-step">
+            <span class="step-number">2</span>
+            <div class="step-content">
+              <h3>Paste the spec</h3>
+              <p>Upload the markdown file or paste it directly into the chat.</p>
+            </div>
+          </li>
+          <li class="next-step">
+            <span class="step-number">3</span>
+            <div class="step-content">
+              <h3>Use the suggested prompt</h3>
+              <p>Your spec includes a ready-made prompt at the bottom. Copy and paste it to get started.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="prompt-preview">
+          <h3 class="prompt-label">Your suggested prompt:</h3>
+          <div class="prompt-box" id="prompt-box"></div>
+          <button id="btn-copy-prompt" class="btn btn-ghost btn-sm" type="button">
+            Copy prompt
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feedback -->
+    <section id="feedback-section" class="feedback-section" hidden>
+      <div class="container">
+        <h2 class="feedback-title">How was that?</h2>
+        <p class="feedback-subtitle">Quick feedback helps us improve Gist.</p>
+        <div class="feedback-options" role="radiogroup" aria-label="Rate your experience">
+          <button class="feedback-btn" data-feedback="great" type="button">
+            <span class="feedback-emoji" aria-hidden="true">&#x1F44D;</span>
+            <span>Great</span>
+          </button>
+          <button class="feedback-btn" data-feedback="okay" type="button">
+            <span class="feedback-emoji" aria-hidden="true">&#x1F937;</span>
+            <span>Okay</span>
+          </button>
+          <button class="feedback-btn" data-feedback="needs-work" type="button">
+            <span class="feedback-emoji" aria-hidden="true">&#x1F4AD;</span>
+            <span>Needs work</span>
+          </button>
+        </div>
+        <p id="feedback-thanks" class="feedback-thanks" hidden>Thanks for the feedback!</p>
+      </div>
+    </section>
+
+    <!-- Start over -->
+    <section id="start-over" class="start-over-section" hidden>
+      <div class="container">
+        <a href="/create" class="btn btn-ghost">Create another spec</a>
+        <a href="/" class="btn btn-ghost">Back to home</a>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<script>
+  import { generateSpec, generateFilename } from '../lib/generator';
+  import type { UserAnswers } from '../lib/types';
+  import { determineComplexity, tierDescriptions } from '../lib/complexity';
+
+  // --- Load answers from sessionStorage ---
+  const raw = sessionStorage.getItem('gist-answers');
+  const noAnswers = document.getElementById('no-answers')!;
+  const specSection = document.getElementById('spec-preview-section')!;
+  const whatsNext = document.getElementById('whats-next')!;
+  const feedbackSection = document.getElementById('feedback-section')!;
+  const startOver = document.getElementById('start-over')!;
+
+  if (!raw) {
+    noAnswers.hidden = false;
+  } else {
+    const answers: Partial<UserAnswers> = JSON.parse(raw);
+    const spec = generateSpec(answers);
+    const filename = generateFilename(answers);
+    const tier = determineComplexity(answers);
+    const tierInfo = tierDescriptions[tier];
+
+    // Show sections
+    specSection.hidden = false;
+    whatsNext.hidden = false;
+    feedbackSection.hidden = false;
+    startOver.hidden = false;
+
+    // Populate spec title and meta
+    const specTitle = document.getElementById('spec-title')!;
+    specTitle.textContent = `${answers.title ?? 'Your'} spec`;
+
+    const metaLine = document.getElementById('spec-meta-line')!;
+    metaLine.textContent = `${tierInfo.label} tier \u00b7 ${tierInfo.framework}`;
+
+    // Filename
+    const filenameEl = document.getElementById('spec-filename')!;
+    filenameEl.textContent = filename;
+
+    // Spec body
+    const specCode = document.getElementById('spec-code')!;
+    specCode.textContent = spec;
+
+    // Extract suggested prompt for the prompt preview
+    const promptMatch = spec.match(/## Suggested Prompt\n[\s\S]*?\n\n"([\s\S]*?)"/);
+    const promptBox = document.getElementById('prompt-box')!;
+    if (promptMatch) {
+      promptBox.textContent = promptMatch[1];
+    } else {
+      promptBox.textContent = 'See the "Suggested Prompt" section in your spec.';
+    }
+
+    // --- Actions ---
+
+    function downloadSpec() {
+      const blob = new Blob([spec], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copySpec(button: HTMLButtonElement) {
+      try {
+        await navigator.clipboard.writeText(spec);
+        const original = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => { button.textContent = original; }, 2000);
+      } catch {
+        // Fallback: select the spec text
+        const range = document.createRange();
+        range.selectNodeContents(specCode);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }
+
+    // Download buttons
+    document.getElementById('btn-download')!.addEventListener('click', downloadSpec);
+    document.getElementById('btn-download-2')!.addEventListener('click', downloadSpec);
+
+    // Copy buttons
+    const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
+    const btnCopy2 = document.getElementById('btn-copy-2') as HTMLButtonElement;
+    btnCopy.addEventListener('click', () => copySpec(btnCopy));
+    btnCopy2.addEventListener('click', () => copySpec(btnCopy2));
+
+    // Copy prompt
+    const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
+    btnCopyPrompt.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(promptBox.textContent ?? '');
+        const original = btnCopyPrompt.textContent;
+        btnCopyPrompt.textContent = 'Copied!';
+        setTimeout(() => { btnCopyPrompt.textContent = original; }, 2000);
+      } catch {
+        // Silent fallback
+      }
+    });
+
+    // Feedback
+    const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
+    const feedbackThanks = document.getElementById('feedback-thanks')!;
+
+    feedbackBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const feedback = btn.dataset.feedback;
+        // Store locally (no server for MVP)
+        try {
+          const existing = JSON.parse(localStorage.getItem('gist-feedback') ?? '[]');
+          existing.push({ feedback, timestamp: new Date().toISOString(), tier });
+          localStorage.setItem('gist-feedback', JSON.stringify(existing));
+        } catch {
+          // Silent — feedback is optional
+        }
+
+        feedbackBtns.forEach(b => { b.disabled = true; });
+        feedbackThanks.hidden = false;
+      });
+    });
+  }
+</script>
+
+<style>
+  .site-header {
+    padding: var(--space-5) 0;
+  }
+
+  .logo {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+  }
+
+  /* No answers */
+  .no-answers-section {
+    padding: var(--space-16) 0;
+    text-align: center;
+  }
+
+  .page-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-2);
+  }
+
+  .page-subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-8);
+  }
+
+  /* Spec preview */
+  .spec-preview-section {
+    padding: var(--space-8) 0;
+  }
+
+  .spec-header {
+    margin-bottom: var(--space-6);
+  }
+
+  .spec-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .spec-actions-top,
+  .spec-actions-bottom {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+    flex-wrap: wrap;
+  }
+
+  .spec-actions-bottom {
+    margin-top: var(--space-6);
+    margin-bottom: 0;
+  }
+
+  .spec-preview-window {
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .spec-preview-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-sunken);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .spec-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    background: var(--color-border);
+  }
+
+  .spec-filename {
+    margin-left: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .spec-body {
+    padding: var(--space-5);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--leading-relaxed);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-raised);
+    border: none;
+    margin: 0;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .spec-body code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+    border: none;
+    transition: background var(--duration-fast) var(--easing),
+                color var(--duration-fast) var(--easing);
+    min-height: 44px;
+    font-family: inherit;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-ghost:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text);
+  }
+
+  .btn-sm {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
+    min-height: 36px;
+  }
+
+  /* What's Next */
+  .whats-next-section {
+    padding: var(--space-12) 0;
+    background: var(--color-bg-sunken);
+  }
+
+  .section-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.01em;
+    margin-bottom: var(--space-8);
+  }
+
+  .next-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    max-width: 480px;
+    margin-bottom: var(--space-10);
+  }
+
+  .next-step {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  .step-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-sm);
+  }
+
+  .step-content h3 {
+    font-size: var(--text-base);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-1);
+  }
+
+  .step-content p {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+  }
+
+  .prompt-preview {
+    max-width: 560px;
+  }
+
+  .prompt-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-3);
+  }
+
+  .prompt-box {
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--leading-relaxed);
+    color: var(--color-text-secondary);
+    white-space: pre-wrap;
+    margin-bottom: var(--space-3);
+  }
+
+  /* Feedback */
+  .feedback-section {
+    padding: var(--space-10) 0;
+    text-align: center;
+  }
+
+  .feedback-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+    margin-bottom: var(--space-1);
+  }
+
+  .feedback-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-6);
+  }
+
+  .feedback-options {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .feedback-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-6);
+    background: var(--color-bg-raised);
+    border: 2px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    transition: border-color var(--duration-fast) var(--easing);
+    min-height: 44px;
+    min-width: 100px;
+  }
+
+  .feedback-btn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+  }
+
+  .feedback-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .feedback-emoji {
+    font-size: var(--text-xl);
+  }
+
+  .feedback-thanks {
+    margin-top: var(--space-4);
+    color: var(--color-status-success);
+    font-weight: var(--weight-medium);
+  }
+
+  /* Start over */
+  .start-over-section {
+    padding: var(--space-8) 0 var(--space-16);
+    text-align: center;
+  }
+
+  .start-over-section .container {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* Responsive */
+  @media (min-width: 640px) {
+    .page-title {
+      font-size: var(--text-3xl);
+    }
+  }
+</style>
