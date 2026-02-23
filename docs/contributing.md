@@ -57,7 +57,7 @@ docs/                        # Project documentation
 Tests cover the core logic modules and the Insights Worker:
 
 ```bash
-npm test           # all tests (75 total)
+npm test           # all tests (93 total)
 npm run worker:test  # worker tests only
 ```
 

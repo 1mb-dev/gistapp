@@ -83,7 +83,7 @@ Components use token variables exclusively, so dark mode works without per-compo
 
 - **Favicon:** Italic serif "G" on an indigo rounded-square. Dark mode variant uses lighter indigo.
 - **Logo mark:** 24px inline SVG in the header, uses `--color-logo-from/to/fg` tokens for automatic theming.
-- **OG image:** 1200x630 SVG with asymmetric layout — wordmark on the left, spec document mockup on the right.
+- **OG image:** 1200x630 PNG with asymmetric layout — wordmark on the left, spec document mockup on the right. Converted from SVG for social crawler compatibility.
 
 ## Accessibility
 

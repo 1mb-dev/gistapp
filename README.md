@@ -47,7 +47,7 @@ See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Development
 
-Requires Node.js 18+.
+Requires Node.js 22+.
 
 ```bash
 # Install dependencies
