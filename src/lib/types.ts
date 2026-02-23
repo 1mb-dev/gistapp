@@ -111,6 +111,7 @@ export interface QuestionOption {
   label: string;
   detail?: string;
   freeInput?: boolean;
+  freeInputKey?: keyof UserAnswers;
 }
 
 /** Response modes for a question */

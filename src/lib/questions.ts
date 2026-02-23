@@ -97,7 +97,7 @@ export const questions: QuestionDef[] = [
       { id: 'no-external', label: 'No external data', detail: 'Calculator, portfolio, landing page, tool' },
       { id: 'user-content', label: 'Users create the content', detail: 'Forms, submissions, user-generated' },
       { id: 'unsure', label: "I'm not sure", detail: "We'll keep things flexible" },
-      { id: 'other', label: 'Other', freeInput: true, detail: 'Describe your data source' },
+      { id: 'other', label: 'Other', freeInput: true, freeInputKey: 'dataSourceDetail', detail: 'Describe your data source' },
     ],
   },
 
@@ -194,7 +194,7 @@ export const questions: QuestionDef[] = [
       { id: 'bold', label: 'Bold and vibrant', detail: 'Strong colors, high contrast, energetic' },
       { id: 'professional', label: 'Professional and clean', detail: 'Structured, corporate-friendly, clear hierarchy' },
       { id: 'playful', label: 'Playful and fun', detail: 'Rounded corners, bright accents, personality' },
-      { id: 'other', label: 'Something else', freeInput: true, detail: 'Describe the vibe in your words' },
+      { id: 'other', label: 'Something else', freeInput: true, freeInputKey: 'designVibeCustom', detail: 'Describe the vibe in your words' },
     ],
   },
   {
