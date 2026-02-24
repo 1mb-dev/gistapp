@@ -40,6 +40,28 @@ const fullAnswers: Partial<UserAnswers> = {
   pageCount: 'many',
 };
 
+/** Answers for a simple form submission app (user-content, no storage) */
+const userContentSimpleAnswers: Partial<UserAnswers> = {
+  ...minimalAnswers,
+  title: 'Feedback Widget',
+  description: 'A feedback form that collects user suggestions',
+  dataSource: 'user-content',
+  userInputType: 'simple-form',
+};
+
+/** Answers for an app where users create and save data */
+const userContentSavesDataAnswers: Partial<UserAnswers> = {
+  ...minimalAnswers,
+  title: 'My Notes',
+  description: 'A personal notes app where users create and organize notes',
+  usageFrequency: 'daily',
+  deviceTarget: 'both',
+  dataSource: 'user-content',
+  userInputType: 'user-saves-data',
+  scale: 'friends',
+  pageCount: 'few',
+};
+
 describe('generateSpec', () => {
   it('returns valid markdown for empty answers', () => {
     const spec = generateSpec({});
@@ -143,6 +165,79 @@ describe('generateSpec', () => {
       description: 'A simple weather app for commuters',
     });
     expect(spec).toContain('A simple weather app for commuters');
+  });
+
+  // --- User-content path tests ---
+
+  it('simple-form: Data Flow describes form submission, not API fetch', () => {
+    const spec = generateSpec(userContentSimpleAnswers);
+    expect(spec).toContain('User fills out form');
+    expect(spec).not.toContain('Browser fetches data directly from API');
+  });
+
+  it('user-saves-data: Data Flow describes storage, not API fetch', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('persists to storage');
+    expect(spec).not.toContain('Browser fetches data directly from API');
+  });
+
+  it('user-saves-data: Implementation Order includes storage step', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toMatch(/storage/i);
+    expect(spec).toContain('Storage backend');
+  });
+
+  it('user-saves-data: UX States includes empty state', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Empty / First Use');
+  });
+
+  it('user-saves-data: UX States includes storage error', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Error (Storage)');
+  });
+
+  it('simple-form: CSP connect-src allows external handlers', () => {
+    const spec = generateSpec(userContentSimpleAnswers);
+    expect(spec).toContain("connect-src 'self' https:");
+  });
+
+  it('user-saves-data: Budget Math includes database limits', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Database');
+  });
+
+  it('standard tier without Worker: no Worker health endpoint', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).not.toContain('health route to your Worker');
+  });
+
+  it('Summary includes agent guidance', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('do not assume');
+  });
+
+  it('Implementation Order includes verification checkpoint', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('Checkpoint');
+  });
+
+  it('Implementation Order references Pre-Ship Checklist', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('Pre-Ship Checklist');
+    // Specifically in the Polish step of Implementation Order
+    const implSection = spec.split('## Implementation Order')[1]?.split('## ')[0] ?? '';
+    expect(implSection).toContain('Pre-Ship Checklist');
+  });
+
+  it('standard tier with Astro: does not recommend tinyrouter', () => {
+    const spec = generateSpec({ ...standardAnswers, pageCount: 'few' });
+    expect(spec).not.toContain('tinyrouter');
+  });
+
+  it('user-saves-data: includes complexity warning', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('complexity');
   });
 });
 

@@ -24,9 +24,10 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionTitle(answers));
   sections.push(sectionMeta(meta));
   sections.push(sectionSummary(answers, tier));
-  sections.push(sectionCustomizations(answers));
   sections.push(sectionIdea(answers));
+  sections.push(sectionCustomizations(answers));
   sections.push(sectionArchitecture(answers, tier));
+  sections.push(sectionConfigChecklist(answers, tier));
   sections.push(sectionDesign(answers, tier));
   sections.push(sectionUXStates(answers));
   sections.push(sectionWiringGuide(answers, tier));
@@ -34,7 +35,6 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionCSP(answers));
   sections.push(sectionAccessibility(answers));
   sections.push(sectionLocale());
-  sections.push(sectionConfigChecklist(answers, tier));
   sections.push(sectionBudgetMath(answers, tier));
 
   if (hasResearchNotes(answers)) {
@@ -171,7 +171,12 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   const tierInfo = tierDescriptions[tier];
   const parts: string[] = [];
 
-  parts.push(`> ${a.description ? sanitizeBlock(a.description) : 'A web application.'}`);
+  const purpose = a.headlineValue
+    ? sanitizeLine(a.headlineValue)
+    : a.description
+      ? sanitizeBlock(a.description)
+      : 'A web application.';
+  parts.push(`> ${purpose}`);
 
   if (hasResolvedExternalData(a) && a.apiKnownName) {
     parts.push(`> Uses ${sanitizeLine(a.apiKnownName)} for data.`);
@@ -182,6 +187,11 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   }
 
   parts.push(`> ${tierInfo.framework}. Hosted on ${hostingName(a)}.`);
+
+  parts.push('');
+  parts.push(
+    '> **For AI assistants:** Follow the Implementation Order step by step. If any requirement is ambiguous, ask the user — do not assume. Verify the design with the user after rendering mock data before connecting real data.',
+  );
 
   return `## Summary\n${parts.join('\n')}`;
 }
@@ -303,39 +313,43 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     }
   }
 
-  // Lightweight Libraries (conditional, non-minimal tiers)
-  if (tier !== 'minimal') {
-    const libs: string[] = [];
-    if (a.pageCount === 'many' || a.pageCount === 'few') {
-      libs.push(
-        '- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation',
-      );
-    }
-    if (
-      hasResolvedExternalData(a) &&
-      (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')
-    ) {
-      libs.push(
-        '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
-      );
-    }
-    if (libs.length > 0) {
-      lines.push('');
-      lines.push('### Recommended Lightweight Libraries');
-      lines.push(
-        '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
-      );
-      lines.push(...libs);
-    }
+  // Lightweight Libraries — tinyrouter for minimal tier (Astro has built-in routing)
+  if (tier === 'minimal' && (a.pageCount === 'many' || a.pageCount === 'few')) {
+    lines.push('');
+    lines.push('### Recommended Lightweight Libraries');
+    lines.push(
+      '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
+    );
+    lines.push(
+      '- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation',
+    );
+  }
+
+  // indexed-cache for non-minimal tiers with cacheable external data
+  if (
+    tier !== 'minimal' &&
+    hasResolvedExternalData(a) &&
+    (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')
+  ) {
+    lines.push('');
+    lines.push('### Recommended Lightweight Libraries');
+    lines.push(
+      '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
+    );
+    lines.push(
+      '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
+    );
   }
 
   // Observability (standard/full tier)
   if (tier !== 'minimal') {
     lines.push('');
     lines.push('### Observability');
-    lines.push(
-      '- Health endpoint: Add a `/health` route to your Worker returning `ok` (for uptime monitoring).',
-    );
+    if (needsWorkerProxy(a) || tier === 'full') {
+      lines.push(
+        '- Health endpoint: Add a `/health` route to your Worker returning `ok` (for uptime monitoring).',
+      );
+    }
     lines.push(
       '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
     );
@@ -414,6 +428,16 @@ function sectionUXStates(a: Partial<UserAnswers>): string {
   }
 
   if (hasResolvedUserContent(a)) {
+    if (a.userInputType !== 'display-only') {
+      lines.push(
+        '- **Empty / First Use** — No saved data yet. Show clear call to action to create first entry.',
+      );
+    }
+    if (a.userInputType === 'user-saves-data') {
+      lines.push(
+        '- **Error (Storage)** — Save failed. Show inline error with retry option. Keep form populated — never lose user input.',
+      );
+    }
     lines.push(
       "- **Form validation** — Inline validation with helpful messages. Don't block submission for optional fields.",
     );
@@ -472,6 +496,31 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
       lines.push(
         `${needsCron(a) ? '7' : '5'}. Browser renders data using safe DOM methods (\`textContent\`, not \`innerHTML\`)`,
       );
+    } else if (hasResolvedUserContent(a)) {
+      if (a.userInputType === 'simple-form') {
+        lines.push('1. User fills out form in the browser');
+        lines.push('2. Browser validates input client-side');
+        lines.push('3. Form submits to handler (Formspree, Netlify Forms, or Worker endpoint)');
+        lines.push('4. Handler processes submission and returns confirmation');
+        lines.push(
+          '5. Browser shows success/error feedback using safe DOM methods (`textContent`, not `innerHTML`)',
+        );
+      } else if (a.userInputType === 'user-saves-data') {
+        lines.push('1. User creates or edits data in the browser');
+        lines.push('2. Browser validates input client-side');
+        lines.push(
+          '3. Data persists to storage (localStorage for MVP, or database — see Architecture > User Input & Storage)',
+        );
+        lines.push('4. On load, browser reads saved data from storage');
+        lines.push(
+          '5. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)',
+        );
+      } else {
+        lines.push('1. Content is pre-loaded in HTML or fetched at build time');
+        lines.push(
+          '2. Browser renders content using safe DOM methods (`textContent`, not `innerHTML`)',
+        );
+      }
     } else {
       lines.push('1. Browser fetches data directly from API (no key needed, CORS-friendly)');
       lines.push('2. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)');
@@ -606,6 +655,8 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push('| `sitemap.xml` | List of pages |');
   }
 
+  lines.push('');
+  lines.push('> These files are created during the Scaffold step of the Implementation Order.');
   lines.push('');
   lines.push('### Performance Defaults');
   lines.push('- `<script defer>` on all JS (non-blocking load)');
@@ -748,7 +799,9 @@ function sectionCSP(a: Partial<UserAnswers>): string {
     ? "'self'"
     : hasResolvedExternalData(a)
       ? "'self' https:"
-      : "'self'";
+      : hasResolvedUserContent(a) && a.userInputType === 'simple-form'
+        ? "'self' https:"
+        : "'self'";
 
   lines.push('```html');
   lines.push('<meta http-equiv="Content-Security-Policy" content="');
@@ -762,6 +815,12 @@ function sectionCSP(a: Partial<UserAnswers>): string {
   lines.push(
     "> Tighten `connect-src` after you know exact API domains (e.g., `connect-src 'self' https://api.example.com`).",
   );
+
+  if (hasResolvedUserContent(a) && a.userInputType === 'simple-form') {
+    lines.push(
+      '> If using an external form handler (Formspree, Netlify Forms), tighten `connect-src` to its specific domain and add `form-action` directive.',
+    );
+  }
 
   return lines.join('\n');
 }
@@ -778,7 +837,8 @@ function sectionLocale(): string {
 }
 
 function sectionBudgetMath(a: Partial<UserAnswers>, tier: ComplexityTier): string {
-  if (!hasResolvedExternalData(a) && a.scale !== 'public') return '';
+  if (!hasResolvedExternalData(a) && a.scale !== 'public' && a.userInputType !== 'user-saves-data')
+    return '';
 
   const freshness = resolveDataFreshness(a);
   const lines = ['## Free Tier Budget'];
@@ -813,6 +873,13 @@ function sectionBudgetMath(a: Partial<UserAnswers>, tier: ComplexityTier): strin
     lines.push('| Cloudflare KV writes | 1K/day | ~24 (hourly cron) |');
   }
 
+  // Database for user-saves-data
+  if (a.userInputType === 'user-saves-data') {
+    lines.push(
+      '| Database (D1/Supabase/Firebase) | Varies (D1: 5M rows free, Supabase: 500MB free) | Depends on user base |',
+    );
+  }
+
   return lines.join('\n');
 }
 
@@ -839,6 +906,9 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
   lines.push(
     `${step++}. **Mock data** — Render the UI with hardcoded data so you can approve the design`,
   );
+  lines.push(
+    '   > **Checkpoint:** Show the user the UI with mock data. Get design approval before connecting real data.',
+  );
 
   if (needsWorkerProxy(a)) {
     lines.push(`${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint`);
@@ -848,6 +918,23 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
     lines.push(
       `${step++}. **Connect data** — Fetch from ${needsWorkerProxy(a) ? 'Worker' : 'API'}, render real data`,
     );
+    lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
+  }
+
+  if (hasResolvedUserContent(a)) {
+    if (a.userInputType === 'user-saves-data') {
+      lines.push(
+        `${step++}. **Storage backend** — Set up persistence (localStorage for MVP, or D1/Supabase/Firebase for multi-user). Define schema and read/write operations`,
+      );
+      lines.push(
+        `${step++}. **Connect storage** — Wire forms to storage, confirm data round-trips (create → read → update → delete)`,
+      );
+    } else if (a.userInputType === 'simple-form') {
+      lines.push(
+        `${step++}. **Form handler** — Connect form to submission endpoint (Formspree, Netlify Forms, or Worker)`,
+      );
+    }
+    lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
   }
 
   if (needsCron(a)) {
@@ -859,7 +946,9 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
     `${step++}. **Web standards** — favicon, og:image, CSP, meta tags, robots.txt, Lighthouse audit`,
   );
   lines.push(`${step++}. **Deploy** — Push to GitHub, connect to hosting, verify deployment`);
-  lines.push(`${step++}. **Polish** — Lighthouse 90+, accessibility audit, mobile testing`);
+  lines.push(
+    `${step++}. **Polish** — Lighthouse 90+, accessibility audit, mobile testing, verify all UX states work. Complete the **Pre-Ship Checklist** (in Wiring Guide section) before declaring done`,
+  );
 
   return lines.join('\n');
 }
@@ -907,29 +996,22 @@ function sectionDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): strin
 function sectionPostDeployment(a: Partial<UserAnswers>): string {
   const lines = [
     '## Post-Deployment',
-    '- **Monitoring:** Visit your app periodically. Check that core functionality works.',
+    '> Verify after deploying, then establish ongoing practices:',
+    '',
+    '- [ ] Live URL loads and core functionality works',
+    `- [ ] ${hostingName(a)} analytics active (free, built-in)`,
   ];
 
-  const host = hostingName(a);
-  lines.push(`- **Analytics:** ${host} provides built-in analytics (free).`);
-
   if (hasResolvedExternalData(a)) {
-    lines.push('- **API changes:** External APIs may change. Pin to API version if available.');
+    lines.push('- [ ] Pin to API version if available — external APIs change without notice');
   }
 
   if (needsCron(a)) {
-    lines.push('- **Cron health:** Check GitHub Actions runs — failed crons mean stale data.');
+    lines.push('- [ ] GitHub Actions cron runs successfully — failed crons mean stale data');
   }
 
-  lines.push(
-    '- **Adding features:** Ask your AI assistant with this spec as context for guided implementation.',
-  );
-  lines.push(
-    '- **CHANGELOG:** Maintain a CHANGELOG.md using [Keep a Changelog](https://keepachangelog.com/) format. Document Added, Changed, Fixed, Removed for each release.',
-  );
-  lines.push(
-    '- **Releases:** Tag releases with semantic versioning (`git tag -a v1.0.0 -m "description"`). Create GitHub releases with notes from CHANGELOG.',
-  );
+  lines.push('- [ ] CHANGELOG.md created ([Keep a Changelog](https://keepachangelog.com/) format)');
+  lines.push('- [ ] First release tagged with semver (`git tag -a v1.0.0 -m "Initial release"`)');
 
   return lines.join('\n');
 }
@@ -941,16 +1023,14 @@ function sectionSuggestedPrompt(a: Partial<UserAnswers>, tier: ComplexityTier): 
     '> Copy this prompt and paste it into your AI coding assistant along with this spec:',
     '',
     '"Here is my app specification generated by Gist. Please:',
-    '1. Review the spec and confirm you understand the architecture',
-    '2. Ask me any clarifying questions before starting',
-    '3. Build it step by step — start with the HTML shell and mock data so I can see the design early',
-    '4. Follow the Implementation Order in the spec',
-    '5. Complete the Pre-Ship Checklist before we deploy',
-    '6. Help me through the Configuration Checklist and Deployment steps',
+    '1. Read the full spec before writing any code',
+    '2. Follow the Implementation Order — pause at each checkpoint for my approval',
+    '3. Complete the Pre-Ship Checklist before we deploy',
   ];
 
+  let nextStep = 4;
   if (needsWorkerProxy(a)) {
-    lines.push('7. Set up the Worker with proper secret handling (never commit API keys)');
+    lines.push(`${nextStep++}. Never commit API keys — use platform secrets only`);
   }
 
   lines.push('');
