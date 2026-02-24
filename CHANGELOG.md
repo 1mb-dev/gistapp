@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-24
+
+### Added
+
+- Admin dashboard redesign: signal panels with horizontal bars, period selector (24h/7d/30d), funnel drop-off insight, satisfaction donut (conic-gradient), tier/persona split, after-download actions
+- New-builder persona overlays for Q6a (user-input), Q10 (offline), Q8a (design-vibe) — jargon-free wording
+- `page_viewed` tracking event for funnel analysis (fires on /create load)
+- 90-day TTL (`expirationTtl: 7_776_000`) on all KV writes for automatic data expiry
+- Context-aware empty state on admin dashboard when period has no events
+- 7 new tests (persona overlays, page_viewed round-trip, KV TTL verification)
+
+### Changed
+
+- Question flow: removed auto-advance setTimeout — users now advance manually via Next button
+- Admin: fetch window extended from 14 to 30 days
+- Admin: loading guard prevents double-submit, button shows "Loading..." state
+- Admin: all DOM construction uses createElement/textContent (no innerHTML)
+- Service worker: bumped cache version to gist-v5
+
+### Fixed
+
+- Admin: Load stats button re-enabled on success path (was stuck disabled if auth form reshown)
+
 ## [1.1.1] - 2026-02-24
 
 ### Fixed
@@ -95,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed dead `free-text` response mode from types
 - Removed unreachable `api-details` branch in `renderOptions()`
 
+[1.2.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.2.0
 [1.1.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.1
 [1.1.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.0.1
