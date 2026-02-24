@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { generateSpec, generateFilename } from './generator';
-import * as fs from 'fs';
-import * as path from 'path';
 
 describe('Spec Examples for Documentation', () => {
   it('generates and saves minimal and detailed specs', () => {
@@ -47,17 +45,13 @@ describe('Spec Examples for Documentation', () => {
     const detailedSpec = generateSpec(detailedAnswers);
     const detailedFilename = generateFilename(detailedAnswers);
 
-    // Save to todos directory
-    const todosDir = path.resolve(__dirname, '../../todos');
-    fs.writeFileSync(path.join(todosDir, minimalFilename), minimalSpec);
-    fs.writeFileSync(path.join(todosDir, detailedFilename), detailedSpec);
-
+    // Verify specs generate correctly
     expect(minimalSpec.length).toBeGreaterThan(0);
     expect(detailedSpec.length).toBeGreaterThan(0);
     expect(minimalSpec).toContain('Development Stages');
     expect(detailedSpec).toContain('Development Stages');
 
-    console.log('\n✓ Specs generated and saved:');
+    console.log('\n✓ Specs generated and validated:');
     console.log(`  - ${minimalFilename} (${minimalSpec.split('\n').length} lines)`);
     console.log(`  - ${detailedFilename} (${detailedSpec.split('\n').length} lines)`);
   });
