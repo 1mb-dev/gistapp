@@ -40,45 +40,33 @@ import SiteHeader from '../components/SiteHeader.astro';
         </div>
 
         <div id="stats-container" class="stats-container" hidden>
-          <div class="stats-grid">
-            <div class="stat-card" id="card-funnel">
-              <h2 class="stat-title">Funnel</h2>
-              <table class="stat-table" id="table-funnel">
-                <thead>
-                  <tr><th>Date</th><th>Persona</th><th>Generated</th><th>Downloaded</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+          <div class="period-selector" role="group" aria-label="Time period">
+            <button class="period-btn" data-days="1" type="button">24h</button>
+            <button class="period-btn" data-days="7" type="button">7d</button>
+            <button class="period-btn active" data-days="30" type="button">30d</button>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="panel panel-full" id="panel-funnel">
+              <h2 class="panel-title">Funnel</h2>
+              <div class="panel-body" id="funnel-body"></div>
+              <p class="panel-insight" id="funnel-insight"></p>
             </div>
 
-            <div class="stat-card" id="card-tiers">
-              <h2 class="stat-title">Tier distribution</h2>
-              <table class="stat-table" id="table-tiers">
-                <thead>
-                  <tr><th>Date</th><th>Minimal</th><th>Standard</th><th>Full</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <div class="panel panel-full" id="panel-tiers">
+              <h2 class="panel-title">Tier split</h2>
+              <div class="panel-body" id="tiers-body"></div>
             </div>
 
-            <div class="stat-card" id="card-feedback">
-              <h2 class="stat-title">Feedback</h2>
-              <table class="stat-table" id="table-feedback">
-                <thead>
-                  <tr><th>Date</th><th>Great</th><th>Okay</th><th>Needs work</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <div class="panel" id="panel-satisfaction">
+              <h2 class="panel-title">Satisfaction</h2>
+              <div class="panel-body" id="satisfaction-body"></div>
             </div>
 
-            <div class="stat-card" id="card-actions">
-              <h2 class="stat-title">Actions</h2>
-              <table class="stat-table" id="table-actions">
-                <thead>
-                  <tr><th>Date</th><th>Downloaded</th><th>Copied</th><th>Prompt copied</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <div class="panel" id="panel-actions">
+              <h2 class="panel-title">After download</h2>
+              <div class="panel-body" id="actions-body"></div>
+              <p class="panel-insight" id="actions-insight"></p>
             </div>
           </div>
         </div>
@@ -102,38 +90,268 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   type StatsResponse = Record<string, Record<string, number>>;
 
+  let isLoading = false;
+  let fullData: StatsResponse = {};
+  let activeDays = 30;
+
   function get(day: Record<string, number> | undefined, key: string): number {
     return day?.[key] ?? 0;
   }
 
-  function populateTable(
-    tableId: string,
-    dates: string[],
-    data: StatsResponse,
-    columns: { key: string }[],
-  ): void {
-    const tbody = document.querySelector(`#${tableId} tbody`)!;
-    tbody.replaceChildren();
+  function filterByPeriod(data: StatsResponse, days: number): StatsResponse {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const filtered: StatsResponse = {};
+    for (const [date, values] of Object.entries(data)) {
+      if (date >= cutoffStr) filtered[date] = values;
+    }
+    return filtered;
+  }
 
-    for (const date of dates) {
-      const row = document.createElement('tr');
-      const dateCell = document.createElement('td');
-      dateCell.textContent = date;
-      row.appendChild(dateCell);
+  function sumMetric(data: StatsResponse, key: string): number {
+    let total = 0;
+    for (const day of Object.values(data)) {
+      total += get(day, key);
+    }
+    return total;
+  }
 
-      for (const col of columns) {
-        const cell = document.createElement('td');
-        cell.textContent = String(get(data[date], col.key));
-        row.appendChild(cell);
+  function pct(part: number, whole: number): string {
+    if (whole === 0) return '0%';
+    return Math.round((part / whole) * 100) + '%';
+  }
+
+  function createMetricBar(label: string, value: number, max: number, color?: string): HTMLElement {
+    const bar = document.createElement('div');
+    bar.className = 'metric-bar';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'metric-bar-label';
+    labelEl.textContent = label;
+
+    const track = document.createElement('div');
+    track.className = 'metric-bar-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'metric-bar-fill';
+    const width = max === 0 ? 0 : Math.round((value / max) * 100);
+    fill.style.width = `${width}%`;
+    if (color) fill.style.background = color;
+    track.appendChild(fill);
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'metric-bar-value';
+    valueEl.textContent = String(value);
+
+    bar.appendChild(labelEl);
+    bar.appendChild(track);
+    bar.appendChild(valueEl);
+    return bar;
+  }
+
+  function renderFunnel(data: StatsResponse): void {
+    const body = document.getElementById('funnel-body')!;
+    const insight = document.getElementById('funnel-insight')!;
+    body.replaceChildren();
+
+    const visited = sumMetric(data, 'page_viewed');
+    const persona = sumMetric(data, 'persona_selected');
+    const generated = sumMetric(data, 'spec_generated');
+    const downloaded = sumMetric(data, 'spec_downloaded');
+
+    const max = Math.max(visited, persona, generated, downloaded, 1);
+
+    const steps = [
+      { label: 'Visited', value: visited },
+      { label: 'Persona', value: persona },
+      { label: 'Generated', value: generated },
+      { label: 'Downloaded', value: downloaded },
+    ];
+
+    for (const s of steps) {
+      body.appendChild(createMetricBar(`${s.label} (${pct(s.value, visited)})`, s.value, max));
+    }
+
+    let biggestDrop = 0;
+    let dropFrom = '';
+    let dropTo = '';
+    let dropPct = '0%';
+    for (let i = 0; i < steps.length - 1; i++) {
+      const drop = steps[i].value - steps[i + 1].value;
+      if (drop > biggestDrop && steps[i].value > 0) {
+        biggestDrop = drop;
+        dropFrom = steps[i].label;
+        dropTo = steps[i + 1].label;
+        dropPct = pct(drop, steps[i].value);
       }
-      tbody.appendChild(row);
+    }
+
+    insight.textContent =
+      biggestDrop > 0 ? `Biggest drop: ${dropFrom} \u2192 ${dropTo} (${dropPct})` : '';
+  }
+
+  function renderTiers(data: StatsResponse): void {
+    const body = document.getElementById('tiers-body')!;
+    body.replaceChildren();
+
+    const minimal = sumMetric(data, 'spec_generated:minimal');
+    const standard = sumMetric(data, 'spec_generated:standard');
+    const full = sumMetric(data, 'spec_generated:full');
+    const tierTotal = minimal + standard + full;
+    const tierMax = Math.max(minimal, standard, full, 1);
+
+    const newBuilder = sumMetric(data, 'persona_selected:new-builder');
+    const developer = sumMetric(data, 'persona_selected:developer');
+    const personaTotal = newBuilder + developer;
+    const personaMax = Math.max(newBuilder, developer, 1);
+
+    const split = document.createElement('div');
+    split.className = 'tiers-split';
+
+    // Tiers column
+    const tiersCol = document.createElement('div');
+    tiersCol.className = 'tiers-column';
+    const tiersH = document.createElement('h3');
+    tiersH.className = 'tiers-heading';
+    tiersH.textContent = 'Tiers';
+    tiersCol.appendChild(tiersH);
+    tiersCol.appendChild(
+      createMetricBar(
+        `Minimal (${pct(minimal, tierTotal)})`,
+        minimal,
+        tierMax,
+        'var(--color-status-success)',
+      ),
+    );
+    tiersCol.appendChild(
+      createMetricBar(
+        `Standard (${pct(standard, tierTotal)})`,
+        standard,
+        tierMax,
+        'var(--color-accent)',
+      ),
+    );
+    tiersCol.appendChild(
+      createMetricBar(
+        `Full (${pct(full, tierTotal)})`,
+        full,
+        tierMax,
+        'var(--color-status-warning)',
+      ),
+    );
+    split.appendChild(tiersCol);
+
+    // Personas column
+    const personaCol = document.createElement('div');
+    personaCol.className = 'tiers-column';
+    const personaH = document.createElement('h3');
+    personaH.className = 'tiers-heading';
+    personaH.textContent = 'Personas';
+    personaCol.appendChild(personaH);
+    personaCol.appendChild(
+      createMetricBar(`New builder (${pct(newBuilder, personaTotal)})`, newBuilder, personaMax),
+    );
+    personaCol.appendChild(
+      createMetricBar(`Developer (${pct(developer, personaTotal)})`, developer, personaMax),
+    );
+    split.appendChild(personaCol);
+
+    body.appendChild(split);
+  }
+
+  function renderSatisfaction(data: StatsResponse): void {
+    const body = document.getElementById('satisfaction-body')!;
+    body.replaceChildren();
+
+    const great = sumMetric(data, 'feedback:great');
+    const okay = sumMetric(data, 'feedback:okay');
+    const needsWork = sumMetric(data, 'feedback:needs-work');
+    const total = great + okay + needsWork;
+
+    if (total < 3) {
+      const empty = document.createElement('p');
+      empty.className = 'panel-empty';
+      empty.textContent = 'Not enough data';
+      body.appendChild(empty);
+      return;
+    }
+
+    const greatPct = Math.round((great / total) * 100);
+    const okayPct = Math.round((okay / total) * 100);
+    const needsPct = 100 - greatPct - okayPct;
+    const max = Math.max(great, okay, needsWork, 1);
+
+    const number = document.createElement('div');
+    number.className = 'satisfaction-number';
+    number.textContent = `${greatPct}%`;
+
+    const label = document.createElement('div');
+    label.className = 'satisfaction-label';
+    label.textContent = 'rated great';
+
+    const donut = document.createElement('div');
+    donut.className = 'satisfaction-donut';
+    donut.style.background = `conic-gradient(var(--color-status-success) 0% ${greatPct}%, var(--color-accent) ${greatPct}% ${greatPct + okayPct}%, var(--color-status-warning) ${greatPct + okayPct}% 100%)`;
+
+    const breakdown = document.createElement('div');
+    breakdown.className = 'satisfaction-breakdown';
+    breakdown.appendChild(
+      createMetricBar(`Great (${greatPct}%)`, great, max, 'var(--color-status-success)'),
+    );
+    breakdown.appendChild(createMetricBar(`Okay (${okayPct}%)`, okay, max, 'var(--color-accent)'));
+    breakdown.appendChild(
+      createMetricBar(`Needs work (${needsPct}%)`, needsWork, max, 'var(--color-status-warning)'),
+    );
+
+    body.appendChild(number);
+    body.appendChild(label);
+    body.appendChild(donut);
+    body.appendChild(breakdown);
+  }
+
+  function renderActions(data: StatsResponse): void {
+    const body = document.getElementById('actions-body')!;
+    const insight = document.getElementById('actions-insight')!;
+    body.replaceChildren();
+
+    const downloaded = sumMetric(data, 'spec_downloaded');
+    const copied = sumMetric(data, 'spec_copied');
+    const promptCopied = sumMetric(data, 'prompt_copied');
+    const max = Math.max(downloaded, copied, promptCopied, 1);
+
+    body.appendChild(createMetricBar('Downloaded', downloaded, max));
+    body.appendChild(createMetricBar('Copied', copied, max));
+    body.appendChild(createMetricBar('Prompt copied', promptCopied, max));
+
+    const total = downloaded + copied + promptCopied;
+    if (total > 0) {
+      const topAction =
+        downloaded >= copied && downloaded >= promptCopied
+          ? 'download'
+          : copied >= promptCopied
+            ? 'copy'
+            : 'prompt copy';
+      insight.textContent = `Most common action: ${topAction}`;
+    } else {
+      insight.textContent = '';
     }
   }
 
-  function renderStats(data: StatsResponse): void {
-    const dates = Object.keys(data).sort().reverse();
+  function renderDashboard(data: StatsResponse): void {
+    const dates = Object.keys(data);
+    const hasFullData = Object.keys(fullData).length > 0;
 
     if (dates.length === 0) {
+      if (hasFullData) {
+        // Data exists in other periods, but not in the selected one
+        const periodLabel = activeDays === 1 ? '24 hours' : activeDays === 7 ? '7 days' : '30 days';
+        emptyState.querySelector('p')!.textContent =
+          `No events in the last ${periodLabel}. Try a longer period.`;
+      } else {
+        emptyState.querySelector('p')!.textContent =
+          'No data yet. Events will appear here once users interact with Gist.';
+      }
       emptyState.hidden = false;
       statsContainer.hidden = true;
       return;
@@ -142,45 +360,41 @@ import SiteHeader from '../components/SiteHeader.astro';
     emptyState.hidden = true;
     statsContainer.hidden = false;
 
-    populateTable('table-funnel', dates, data, [
-      { key: 'persona_selected' },
-      { key: 'spec_generated' },
-      { key: 'spec_downloaded' },
-    ]);
-
-    populateTable('table-tiers', dates, data, [
-      { key: 'spec_generated:minimal' },
-      { key: 'spec_generated:standard' },
-      { key: 'spec_generated:full' },
-    ]);
-
-    populateTable('table-feedback', dates, data, [
-      { key: 'feedback:great' },
-      { key: 'feedback:okay' },
-      { key: 'feedback:needs-work' },
-    ]);
-
-    populateTable('table-actions', dates, data, [
-      { key: 'spec_downloaded' },
-      { key: 'spec_copied' },
-      { key: 'prompt_copied' },
-    ]);
+    renderFunnel(data);
+    renderTiers(data);
+    renderSatisfaction(data);
+    renderActions(data);
   }
 
+  // Period selector
+  document.querySelectorAll<HTMLButtonElement>('.period-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeDays = Number(btn.dataset.days);
+      renderDashboard(filterByPeriod(fullData, activeDays));
+    });
+  });
+
   async function loadStats(): Promise<void> {
+    if (isLoading) return;
+
     const token = tokenInput.value.trim();
     if (!token) {
       tokenInput.focus();
       return;
     }
 
+    isLoading = true;
+    btnLoad.disabled = true;
+    btnLoad.textContent = 'Loading...';
     loading.hidden = false;
     errorState.hidden = true;
     emptyState.hidden = true;
     statsContainer.hidden = true;
 
     try {
-      const res = await fetch(`${INSIGHTS_URL}/api/stats?days=14`, {
+      const res = await fetch(`${INSIGHTS_URL}/api/stats?days=30`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -192,10 +406,14 @@ import SiteHeader from '../components/SiteHeader.astro';
         throw new Error(`Server error (${res.status}). Try again later.`);
       }
 
-      const data: StatsResponse = await res.json();
-      renderStats(data);
+      fullData = await res.json();
+      renderDashboard(filterByPeriod(fullData, activeDays));
       authForm.hidden = true;
+      btnLoad.disabled = false;
+      btnLoad.textContent = 'Load stats';
     } catch (err) {
+      btnLoad.disabled = false;
+      btnLoad.textContent = 'Load stats';
       errorState.hidden = false;
       if (err instanceof TypeError) {
         errorMessage.textContent =
@@ -208,6 +426,7 @@ import SiteHeader from '../components/SiteHeader.astro';
           err instanceof Error ? err.message : 'Failed to load stats. Check your connection.';
       }
     } finally {
+      isLoading = false;
       loading.hidden = true;
     }
   }
@@ -216,6 +435,8 @@ import SiteHeader from '../components/SiteHeader.astro';
   btnRetry.addEventListener('click', () => {
     errorState.hidden = true;
     authForm.hidden = false;
+    btnLoad.disabled = false;
+    btnLoad.textContent = 'Load stats';
     tokenInput.focus();
   });
 
@@ -289,21 +510,67 @@ import SiteHeader from '../components/SiteHeader.astro';
     color: var(--color-text-muted);
   }
 
-  .stats-grid {
-    display: grid;
-    gap: var(--space-6);
+  /* Period selector */
+  .period-selector {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
   }
 
-  .stat-card {
+  .period-btn {
+    padding: var(--space-2) var(--space-4);
+    min-height: 44px;
+    min-width: 44px;
+    border: 1.5px solid var(--color-border-subtle);
+    border-radius: var(--radius-full);
+    background: var(--color-bg-raised);
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-wider);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--easing);
+  }
+
+  .period-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-text);
+  }
+
+  .period-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  /* Dashboard grid */
+  .dashboard-grid {
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .panel-full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* Panels */
+  .panel {
     background: var(--color-bg-raised);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-xl);
     padding: var(--space-6);
     box-shadow: var(--shadow-card);
-    overflow-x: auto;
   }
 
-  .stat-title {
+  .panel-title {
     font-family: var(--font-display);
     font-size: var(--text-lg);
     font-weight: var(--weight-normal);
@@ -311,44 +578,132 @@ import SiteHeader from '../components/SiteHeader.astro';
     margin-bottom: var(--space-4);
   }
 
-  .stat-table {
-    width: 100%;
-    border-collapse: collapse;
+  .panel-insight {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: var(--space-3);
+    font-style: italic;
+  }
+
+  .panel-empty {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    text-align: center;
+    padding: var(--space-6) 0;
+  }
+
+  /* Metric bars */
+  .metric-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+  }
+
+  .metric-bar:last-child {
+    margin-bottom: 0;
+  }
+
+  .metric-bar-label {
+    flex: 0 0 auto;
+    min-width: 140px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+  }
+
+  .metric-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--color-bg-sunken);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+
+  .metric-bar-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    transition: width var(--duration-normal) var(--easing);
+    min-width: 0;
+  }
+
+  .metric-bar-value {
+    flex: 0 0 auto;
+    min-width: 32px;
+    text-align: right;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-  }
-
-  .stat-table th {
-    text-align: left;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--color-border-subtle);
-    color: var(--color-text-muted);
     font-weight: var(--weight-medium);
-    letter-spacing: var(--tracking-wider);
-    text-transform: uppercase;
-    white-space: nowrap;
+    color: var(--color-text);
   }
 
-  .stat-table td {
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--color-border-subtle);
-    white-space: nowrap;
-  }
-
-  .stat-table tbody tr:last-child td {
-    border-bottom: none;
+  /* Tiers split layout */
+  .tiers-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
   }
 
   @media (min-width: 768px) {
-    .stats-grid {
+    .tiers-split {
       grid-template-columns: 1fr 1fr;
     }
+  }
+
+  .tiers-heading {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    margin-bottom: var(--space-3);
+  }
+
+  /* Satisfaction */
+  .satisfaction-number {
+    font-family: var(--font-display);
+    font-size: var(--text-4xl);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-tight);
+    color: var(--color-text);
+  }
+
+  .satisfaction-label {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .satisfaction-donut {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-full);
+    margin-bottom: var(--space-4);
+    position: relative;
+  }
+
+  .satisfaction-donut::after {
+    content: '';
+    position: absolute;
+    inset: 16px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-raised);
+  }
+
+  .satisfaction-breakdown {
+    margin-top: var(--space-2);
   }
 
   @media (prefers-reduced-motion: reduce) {
     .loading-state .spinner {
       animation: none;
       opacity: 0.6;
+    }
+
+    .metric-bar-fill {
+      transition: none;
     }
   }
 </style>
