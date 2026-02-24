@@ -193,6 +193,13 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
     '> **For AI assistants:** Follow the Implementation Order step by step. If any requirement is ambiguous, ask the user — do not assume. Verify the design with the user after rendering mock data before connecting real data.',
   );
 
+  if (a.persona === 'new-builder') {
+    parts.push('');
+    parts.push(
+      '> **For you:** This spec is your blueprint — your AI assistant will handle the technical details. Read through it to see what your app will include, then share the whole thing with your AI coding assistant.',
+    );
+  }
+
   return `## Summary\n${parts.join('\n')}`;
 }
 
@@ -1052,6 +1059,13 @@ function sectionSuggestedPrompt(a: Partial<UserAnswers>, tier: ComplexityTier): 
   } else {
     lines.push(
       `Important: this is a full-tier app with ${tierInfo.framework}. Follow the architecture exactly — caching, cron, and proxy are all needed."`,
+    );
+  }
+
+  if (a.persona === 'new-builder') {
+    lines.push('');
+    lines.push(
+      "> **Tip:** You don't need to understand every technical section — your AI assistant will. Just share this full spec and follow along as it builds your app step by step.",
     );
   }
 

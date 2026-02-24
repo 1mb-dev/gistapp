@@ -40,9 +40,10 @@ const fullAnswers: Partial<UserAnswers> = {
   pageCount: 'many',
 };
 
-/** Answers for a simple form submission app (user-content, no storage) */
+/** Answers for a simple form submission app (user-content, no storage, new-builder persona) */
 const userContentSimpleAnswers: Partial<UserAnswers> = {
   ...minimalAnswers,
+  persona: 'new-builder',
   title: 'Feedback Widget',
   description: 'A feedback form that collects user suggestions',
   dataSource: 'user-content',
@@ -270,6 +271,17 @@ describe('generateSpec', () => {
   it('user-saves-data: CSP connect-src allows cloud database calls', () => {
     const spec = generateSpec(userContentSavesDataAnswers);
     expect(spec).toContain("connect-src 'self' https:");
+  });
+
+  it('new-builder persona: includes reassuring hints for non-technical users', () => {
+    const spec = generateSpec(userContentSimpleAnswers);
+    expect(spec).toContain('your AI assistant will handle the technical details');
+    expect(spec).toContain("You don't need to understand every technical section");
+  });
+
+  it('developer persona: does not include new-builder hints', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('your AI assistant will handle the technical details');
   });
 });
 
