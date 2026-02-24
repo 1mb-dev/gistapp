@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-24
+
+### Added
+
+- Generator: user-content Data Flow — simple-form (form submission) and user-saves-data (storage round-trip) paths with correct step-by-step flows
+- Generator: UX States — Empty/First Use and Error (Storage) states for user-content apps
+- Generator: Implementation Order — storage backend, connect storage, and form handler steps for user-content apps
+- Generator: verification checkpoints after mock data and data connection steps
+- Generator: agent guidance in Summary — "follow order, ask don't assume, verify design"
+- Generator: Pre-Ship Checklist reference in Polish step
+- Generator: new-builder persona hints — subtle reassurance in Summary and Suggested Prompt
+- Generator: Budget Math — database row for user-saves-data apps
+- Generator: CSP form-action guidance for simple-form apps; database provider guidance for user-saves-data
+- Generator: Web Standards cross-reference to Implementation Order scaffold step
+- 19 new tests covering user-content paths, persona hints, architecture scoping (119 total)
+
+### Changed
+
+- Generator: section order — Idea before Customizations, Configuration Checklist after Architecture
+- Generator: Summary uses headlineValue (deduplicates with Idea section)
+- Generator: Post-Deployment rewritten as actionable checkboxes
+- Generator: Suggested Prompt slimmed from 6-7 items to 3-4 (agentic instructions now in spec body)
+- Generator: Observability health endpoint scoped to Worker apps only (was all standard-tier)
+- Generator: tinyrouter scoped to minimal tier only (Astro has built-in file-based routing)
+- Generator: library heading consolidated to single accumulator (no duplicate heading risk)
+- Generator: CSP connect-src allows `https:` for user-saves-data apps (cloud database calls)
+- Service worker: bumped cache version to gist-v7
+
+### Fixed
+
+- Generator: user-content apps no longer show wrong "Browser fetches data from API" Data Flow
+- Generator: display-only user-content no longer gets orphaned verification checkpoint
+- Generator: standard-tier apps without Worker no longer show "/health route to your Worker"
+
 ## [1.2.1] - 2026-02-24
 
 ### Fixed
