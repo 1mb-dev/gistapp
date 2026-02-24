@@ -82,6 +82,39 @@ describe('resolveQuestion', () => {
     const resolved = resolveQuestion(briefQ, 'new-builder');
     expect(resolved.title).toBe(briefQ.title);
   });
+
+  it('applies overlay for Q6a (user-input) for new-builder persona', () => {
+    const q = questions.find((q) => q.id === 'user-input')!;
+    const resolved = resolveQuestion(q, 'new-builder');
+    expect(resolved.title).toBe('Will people type or save things in your app?');
+    const opt = resolved.options?.find((o) => o.id === 'simple-form');
+    expect(opt?.label).toBe('A short form');
+  });
+
+  it('applies overlay for Q10 (offline) for new-builder persona', () => {
+    const q = questions.find((q) => q.id === 'offline')!;
+    const resolved = resolveQuestion(q, 'new-builder');
+    expect(resolved.title).toBe('Should your app work without internet?');
+    expect(resolved.subtitle).toContain('every day on their phone');
+    const opt = resolved.options?.find((o) => o.id === 'yes');
+    expect(opt?.label).toBe('Yes, show something when offline');
+  });
+
+  it('applies overlay for Q8a (design-vibe) for new-builder persona', () => {
+    const q = questions.find((q) => q.id === 'design-vibe')!;
+    const resolved = resolveQuestion(q, 'new-builder');
+    expect(resolved.title).toBe('What should your app feel like?');
+    const calmOpt = resolved.options?.find((o) => o.id === 'calm');
+    expect(calmOpt?.label).toBe('Calm and simple');
+  });
+
+  it('does not apply Q6a/Q10/Q8a overlays for developer persona', () => {
+    for (const id of ['user-input', 'offline', 'design-vibe']) {
+      const q = questions.find((q) => q.id === id)!;
+      const resolved = resolveQuestion(q, 'developer');
+      expect(resolved.title).toBe(q.title);
+    }
+  });
 });
 
 describe('getAutoDefault', () => {

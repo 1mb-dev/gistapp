@@ -461,6 +461,42 @@ const newBuilderOverlays: Record<string, PersonaOverlay> = {
       dense: { label: 'Lots of information', detail: 'Tables, charts, or data-heavy displays' },
     },
   },
+  'user-input': {
+    title: 'Will people type or save things in your app?',
+    options: {
+      'simple-form': { label: 'A short form', detail: 'Contact, feedback, or newsletter signup' },
+      'user-saves-data': {
+        label: 'People save their own stuff',
+        detail: 'Accounts, preferences, entries — needs storage',
+      },
+      'display-only': {
+        label: 'Just showing information',
+        detail: 'Content is pre-loaded, users just view it',
+      },
+    },
+  },
+  offline: {
+    title: 'Should your app work without internet?',
+    subtitle: 'Since people will use this every day on their phone, it could be helpful offline.',
+    options: {
+      yes: { label: 'Yes, show something when offline' },
+      no: { label: 'No, internet is needed' },
+      unsure: { label: "I'm not sure yet" },
+    },
+  },
+  'design-vibe': {
+    title: 'What should your app feel like?',
+    subtitle: "Pick the mood that fits. Skip this if you're not sure.",
+    options: {
+      calm: { label: 'Calm and simple', detail: 'Muted colors, breathable layout' },
+      bold: { label: 'Bold and energetic', detail: 'Strong colors, vibrant, eye-catching' },
+      professional: {
+        label: 'Professional and clean',
+        detail: 'Structured, clear hierarchy',
+      },
+      playful: { label: 'Playful and fun', detail: 'Rounded corners, bright accents, personality' },
+    },
+  },
 };
 
 /** Resolve a question definition with persona-specific overlays */
