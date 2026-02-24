@@ -474,11 +474,14 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .loading-state {
-    display: flex;
     align-items: center;
     gap: var(--space-4);
     padding: var(--space-8) 0;
     color: var(--color-text-secondary);
+  }
+
+  .loading-state:not([hidden]) {
+    display: flex;
   }
 
   .loading-state .spinner {
