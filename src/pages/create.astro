@@ -134,6 +134,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         }
       })()
     : {};
+  track('page_viewed');
+
   let visibleQuestions: QuestionDef[] = [];
   let currentIndex = 0;
 
@@ -314,11 +316,6 @@ import SiteHeader from '../components/SiteHeader.astro';
         }
 
         btnNext.disabled = false;
-
-        // Auto-advance for non-free-input options after brief visual feedback
-        if (!opt.freeInput) {
-          setTimeout(() => advance(), 250);
-        }
       });
 
       optionsList.appendChild(btn);
