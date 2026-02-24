@@ -153,10 +153,31 @@ async function handleEvent(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleStats(request: Request, env: Env): Promise<Response> {
+  // Rate limiting: 5 attempts per minute per IP. Prevents brute force attacks.
+  // Cloudflare Workers provides clientIp in request.cf
+  const clientIp = (request.cf?.clientIp as string) || 'unknown';
+  const now = Math.floor(Date.now() / 1000);
+  const minuteKey = `auth_ratelimit:${clientIp}:${now - (now % 60)}`; // Bucket by minute
+
+  const raw = await env.INSIGHTS.get(minuteKey);
+  const attempts = Math.max(0, parseInt(raw || '0', 10));
+
+  if (attempts >= 5) {
+    // After 5 failures, reject further attempts for this minute
+    return corsResponse('Too many auth attempts. Try again in a moment.', 429);
+  }
+
   const auth = request.headers.get('Authorization');
   if (!auth || !timingSafeCompare(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
+    // Log failed attempt without exposing the token
+    await env.INSIGHTS.put(minuteKey, String(attempts + 1), {
+      expirationTtl: 70, // Slightly more than a minute to handle clock skew
+    });
     return corsResponse('Unauthorized', 401);
   }
+
+  // Auth succeeded. Clear the rate limit counter for this IP.
+  await env.INSIGHTS.delete(minuteKey);
 
   if (!env.INSIGHTS) {
     console.error('INSIGHTS KV binding is not configured');
@@ -231,7 +252,11 @@ export default {
 
       return corsResponse('Not found', 404);
     } catch (err) {
-      console.error('Unhandled worker error:', err);
+      // Log error without exposing request body, headers, or tokens.
+      // Extract only the error message/type for debugging.
+      const errorMsg =
+        err instanceof Error ? `${err.name}: ${err.message}` : String(err).slice(0, 100);
+      console.error('Unhandled worker error:', errorMsg);
       return corsResponse('Internal error', 500);
     }
   },
