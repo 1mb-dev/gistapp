@@ -205,6 +205,16 @@ import SiteHeader from '../components/SiteHeader.astro';
             URL.revokeObjectURL(url);
           } catch (err) {
             console.error('[spec] Download failed:', err);
+            const btns = document.querySelectorAll<HTMLButtonElement>(
+              '#btn-download, #btn-download-2',
+            );
+            btns.forEach((btn) => {
+              const original = btn.textContent;
+              btn.textContent = 'Download failed \u2014 try again';
+              setTimeout(() => {
+                btn.textContent = original;
+              }, 3000);
+            });
           }
         }
 

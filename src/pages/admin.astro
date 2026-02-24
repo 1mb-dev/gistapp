@@ -88,6 +88,10 @@ import SiteHeader from '../components/SiteHeader.astro';
   const statsContainer = document.getElementById('stats-container')!;
   const authForm = document.getElementById('auth-form')!;
 
+  tokenInput.addEventListener('input', () => {
+    tokenInput.removeAttribute('aria-invalid');
+  });
+
   type StatsResponse = Record<string, Record<string, number>>;
 
   let isLoading = false;
@@ -381,9 +385,11 @@ import SiteHeader from '../components/SiteHeader.astro';
 
     const token = tokenInput.value.trim();
     if (!token) {
+      tokenInput.setAttribute('aria-invalid', 'true');
       tokenInput.focus();
       return;
     }
+    tokenInput.removeAttribute('aria-invalid');
 
     isLoading = true;
     btnLoad.disabled = true;
@@ -471,6 +477,11 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   .auth-row .field-input {
     flex: 1;
+  }
+
+  .field-input[aria-invalid='true'] {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
   }
 
   .loading-state {

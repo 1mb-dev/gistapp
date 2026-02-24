@@ -48,7 +48,14 @@ import SiteHeader from '../components/SiteHeader.astro';
         <div class="nav-actions">
           <button id="btn-back" class="btn btn-ghost" type="button" hidden>Back</button>
           <button id="btn-skip" class="btn btn-ghost" type="button" hidden>Skip</button>
-          <button id="btn-next" class="btn btn-primary" type="button" disabled>Next</button>
+          <button
+            id="btn-next"
+            class="btn btn-primary"
+            type="button"
+            disabled
+            aria-describedby="next-hint">Next</button
+          >
+          <span id="next-hint" class="sr-only">Select an option to continue</span>
         </div>
       </div>
     </section>
@@ -139,11 +146,22 @@ import SiteHeader from '../components/SiteHeader.astro';
   let visibleQuestions: QuestionDef[] = [];
   let currentIndex = 0;
 
+  let saveFailedOnce = false;
+
   function saveProgress() {
     try {
       sessionStorage.setItem('gist-progress', JSON.stringify(answers));
     } catch {
-      /* storage full or inaccessible — progress won't persist across reloads */
+      if (!saveFailedOnce) {
+        saveFailedOnce = true;
+        const bar = document.getElementById('progress-bar');
+        if (bar) {
+          const note = document.createElement('p');
+          note.className = 'save-warning';
+          note.textContent = 'Your progress can\u2019t be saved. Finish in one sitting.';
+          bar.insertAdjacentElement('afterend', note);
+        }
+      }
     }
   }
 
@@ -554,7 +572,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     // Navigate to spec preview after brief animation
     setTimeout(() => {
       window.location.href = '/spec';
-    }, 1200);
+    }, 500);
   });
 </script>
 
@@ -653,6 +671,13 @@ import SiteHeader from '../components/SiteHeader.astro';
     transition: width var(--duration-normal) var(--easing);
     width: 0%;
     box-shadow: 0 0 8px var(--color-accent-glow, rgba(61, 50, 176, 0.3));
+  }
+
+  .save-warning {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: var(--space-2) 0 0;
+    font-style: italic;
   }
 
   .question-counter {
