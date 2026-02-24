@@ -28,7 +28,7 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionIdea(answers));
   sections.push(sectionArchitecture(answers, tier));
   sections.push(sectionDesign(answers, tier));
-  sections.push(sectionUXStates(answers, tier));
+  sections.push(sectionUXStates(answers));
   sections.push(sectionWiringGuide(answers, tier));
   sections.push(sectionWebStandards(answers, tier));
   sections.push(sectionCSP(answers));
@@ -43,7 +43,7 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
 
   sections.push(sectionImplementationOrder(answers, tier));
   sections.push(sectionDeployment(answers, tier));
-  sections.push(sectionPostDeployment(answers, tier));
+  sections.push(sectionPostDeployment(answers));
   sections.push(sectionSuggestedPrompt(answers, tier));
   sections.push(sectionFooter(meta));
 
@@ -371,7 +371,7 @@ function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   return lines.join('\n');
 }
 
-function sectionUXStates(a: Partial<UserAnswers>, tier: ComplexityTier): string {
+function sectionUXStates(a: Partial<UserAnswers>): string {
   const lines = ['## UX States', ''];
 
   lines.push(
@@ -861,7 +861,7 @@ function sectionDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): strin
   return lines.join('\n');
 }
 
-function sectionPostDeployment(a: Partial<UserAnswers>, tier: ComplexityTier): string {
+function sectionPostDeployment(a: Partial<UserAnswers>): string {
   const lines = [
     '## Post-Deployment',
     '- **Monitoring:** Visit your app periodically. Check that core functionality works.',
