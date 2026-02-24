@@ -329,6 +329,21 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     }
   }
 
+  // Observability (standard/full tier)
+  if (tier !== 'minimal') {
+    lines.push('');
+    lines.push('### Observability');
+    lines.push(
+      '- Health endpoint: Add a `/health` route to your Worker returning `ok` (for uptime monitoring).',
+    );
+    lines.push(
+      '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
+    );
+    lines.push(
+      '- Errors: Log to `console.error()` with context. For production visibility, consider a free error tracker (Sentry free tier: 5K events/month).',
+    );
+  }
+
   // User Input & Storage (conditional)
   if (hasResolvedUserContent(a)) {
     lines.push('');
@@ -405,6 +420,21 @@ function sectionUXStates(a: Partial<UserAnswers>): string {
   }
 
   lines.push('- **Offline** — Show appropriate message. If PWA with cache, show last-known data.');
+
+  lines.push('');
+  lines.push('### Show/Hide Pattern');
+  lines.push(
+    '- Use the `hidden` attribute for toggling visibility (`element.hidden = true/false`).',
+  );
+  lines.push(
+    '- **Gotcha:** If CSS sets `display: flex` or `display: grid` on the element, it overrides `hidden`. Fix: use `.my-class:not([hidden]) { display: flex; }` instead.',
+  );
+  lines.push(
+    '- Disabled controls should explain why — use `aria-describedby` pointing to a hint element.',
+  );
+  lines.push(
+    '- Silent `catch {}` blocks should surface user-facing feedback (inline note or button text change), not fail silently.',
+  );
 
   return lines.join('\n');
 }
@@ -504,6 +534,12 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
 
   appendMinimalChecklist(lines);
 
+  if (shouldRecommendPWA(a)) {
+    lines.push(
+      '- [ ] Service worker cache version bumped (must update on every release to invalidate stale assets)',
+    );
+  }
+
   return lines.join('\n');
 }
 
@@ -527,6 +563,13 @@ function appendMinimalChecklist(lines: string[]): void {
   lines.push('- [ ] `prefers-reduced-motion` respected');
   lines.push('- [ ] Lighthouse: target 90+ on all categories');
   lines.push('- [ ] Mobile viewport test (320px minimum)');
+  lines.push('');
+  lines.push('**Release readiness:**');
+  lines.push('- [ ] Version bumped in package.json (if applicable)');
+  lines.push('- [ ] CHANGELOG.md updated ([Keep a Changelog](https://keepachangelog.com/) format)');
+  lines.push('- [ ] No cosmetic delays longer than 500ms without justification');
+  lines.push('- [ ] No silent `catch {}` blocks — all failures surface user-facing feedback');
+  lines.push('- [ ] Disabled buttons have `aria-describedby` or `title` explaining why');
 }
 
 function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): string {
@@ -880,6 +923,12 @@ function sectionPostDeployment(a: Partial<UserAnswers>): string {
 
   lines.push(
     '- **Adding features:** Ask your AI assistant with this spec as context for guided implementation.',
+  );
+  lines.push(
+    '- **CHANGELOG:** Maintain a CHANGELOG.md using [Keep a Changelog](https://keepachangelog.com/) format. Document Added, Changed, Fixed, Removed for each release.',
+  );
+  lines.push(
+    '- **Releases:** Tag releases with semantic versioning (`git tag -a v1.0.0 -m "description"`). Create GitHub releases with notes from CHANGELOG.',
   );
 
   return lines.join('\n');
