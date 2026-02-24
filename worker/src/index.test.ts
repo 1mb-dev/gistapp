@@ -30,7 +30,7 @@ import worker from './index';
 function makeEnv(kv?: KVNamespace) {
   return {
     INSIGHTS: kv ?? createMockKV(),
-    ADMIN_TOKEN: 'test-secret-token',
+    ADMIN_TOKEN: 'test-token-do-not-use-in-production',
   };
 }
 
@@ -134,7 +134,7 @@ describe('GET /api/stats', () => {
   });
 
   it('returns 200 with valid token', async () => {
-    const res = await getStats('test-secret-token');
+    const res = await getStats('test-token-do-not-use-in-production');
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toBeDefined();
@@ -142,15 +142,15 @@ describe('GET /api/stats', () => {
 
   it('clamps days param to 1-30 range', async () => {
     // days=0 should clamp to 1, days=100 should clamp to 30
-    const res1 = await getStats('test-secret-token', 0);
+    const res1 = await getStats('test-token-do-not-use-in-production', 0);
     expect(res1.status).toBe(200);
 
-    const res2 = await getStats('test-secret-token', 100);
+    const res2 = await getStats('test-token-do-not-use-in-production', 100);
     expect(res2.status).toBe(200);
   });
 
   it('includes CORS headers', async () => {
-    const res = await getStats('test-secret-token');
+    const res = await getStats('test-token-do-not-use-in-production');
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://gist.1mb.dev');
   });
 });
@@ -322,7 +322,7 @@ describe('POST then GET round-trip', () => {
     await postEvent(JSON.stringify({ event: 'spec_downloaded' }), env);
 
     // Get stats
-    const res = await getStats('test-secret-token', 1, env);
+    const res = await getStats('test-token-do-not-use-in-production', 1, env);
     expect(res.status).toBe(200);
     const data = (await res.json()) as Record<string, Record<string, number>>;
 
@@ -349,7 +349,7 @@ describe('page_viewed event', () => {
     await postEvent(JSON.stringify({ event: 'page_viewed' }), env);
     await postEvent(JSON.stringify({ event: 'page_viewed' }), env);
 
-    const res = await getStats('test-secret-token', 1, env);
+    const res = await getStats('test-token-do-not-use-in-production', 1, env);
     const data = (await res.json()) as Record<string, Record<string, number>>;
     const dates = Object.keys(data);
     expect(dates.length).toBe(1);
@@ -427,7 +427,7 @@ describe('Rate limiting on /api/stats', () => {
     (kv.delete as ReturnType<typeof vi.fn>).mockClear();
 
     // Successful auth (before hitting limit) should clear the rate limit counter
-    const res = await getStats('test-secret-token', undefined, env);
+    const res = await getStats('test-token-do-not-use-in-production', undefined, env);
     expect(res.status).toBe(200);
 
     // Should have called delete to clear the rate limit key
@@ -445,9 +445,7 @@ describe('Rate limiting on /api/stats', () => {
     await getStats('wrong-token', undefined, env);
 
     const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
-    const rateLimitCall = putCalls.find(
-      (c: string[]) => c[0].startsWith('auth_ratelimit:'),
-    );
+    const rateLimitCall = putCalls.find((c: string[]) => c[0].startsWith('auth_ratelimit:'));
     expect(rateLimitCall).toBeDefined();
     // Should have expirationTtl: 70 (slightly more than 60 seconds)
     expect(rateLimitCall?.[2]).toMatchObject({ expirationTtl: 70 });
@@ -463,7 +461,7 @@ describe('Rate limiting on /api/stats', () => {
     }
 
     // 6th request with CORRECT token should still be rate-limited
-    const res = await getStats('test-secret-token', undefined, env);
+    const res = await getStats('test-token-do-not-use-in-production', undefined, env);
     expect(res.status).toBe(429);
   });
 
@@ -503,7 +501,7 @@ describe('Error sanitization', () => {
     for (const call of errorCalls) {
       const loggedContent = String(call[0]);
       // Should not log Authorization header or token
-      expect(loggedContent).not.toContain('test-secret-token');
+      expect(loggedContent).not.toContain('test-token-do-not-use-in-production');
       expect(loggedContent).not.toContain('Authorization');
     }
 
@@ -516,18 +514,15 @@ describe('Error sanitization', () => {
     const env = makeEnv(kv);
 
     // Make a normal request that doesn't trigger an error
-    await getStats('test-secret-token', undefined, env);
+    await getStats('test-token-do-not-use-in-production', undefined, env);
 
     // The console.error with "Unhandled worker error" should sanitize the error
     // (Note: we won't actually trigger an unhandled error here, but the code path is tested)
-    const allErrorCalls = (consoleSpy as ReturnType<typeof vi.spyOn>).mock.calls
-      .map((c: unknown[]) => String(c[0]));
+    const allErrorCalls = (consoleSpy as ReturnType<typeof vi.spyOn>).mock.calls.map(
+      (c: unknown[]) => String(c[0]),
+    );
     // Should log "Unhandled worker error" with sanitized message, not full object
-    expect(
-      allErrorCalls.some((msg: string) =>
-        /Unhandled worker error:/.test(msg),
-      ),
-    ).toBe(false); // No unhandled errors in this test
+    expect(allErrorCalls.some((msg: string) => /Unhandled worker error:/.test(msg))).toBe(false); // No unhandled errors in this test
 
     consoleSpy.mockRestore();
   });
