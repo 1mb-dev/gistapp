@@ -150,6 +150,71 @@ function frameworkForTier(tier: ComplexityTier): string {
   return 'Astro (static site generator)';
 }
 
+/** Generate context-aware empty state prompt text based on API description or known name.
+ *  Falls back to generic text if no API context is available. */
+function generateEmptyStatePrompt(apiDescription?: string, apiKnownName?: string): string {
+  if (!apiDescription) {
+    return '- **Empty / First Use** — Prompt user for initial input. Clear call to action.';
+  }
+
+  const desc = apiDescription.toLowerCase();
+
+  // Pattern matching for common API types
+  if (
+    desc.includes('location') ||
+    desc.includes('weather') ||
+    desc.includes('city') ||
+    desc.includes('address')
+  ) {
+    return '- **Empty / First Use** — Prompt user for location (city, zip, or coordinates). Clear call to action.';
+  }
+  if (
+    desc.includes('stock') ||
+    desc.includes('ticker') ||
+    desc.includes('price') ||
+    desc.includes('market')
+  ) {
+    return '- **Empty / First Use** — Prompt user for ticker symbol or company name. Clear call to action.';
+  }
+  if (
+    desc.includes('search') ||
+    desc.includes('query') ||
+    desc.includes('keyword') ||
+    desc.includes('term')
+  ) {
+    return '- **Empty / First Use** — Prompt user for search query. Clear call to action.';
+  }
+  if (
+    desc.includes('news') ||
+    desc.includes('feed') ||
+    desc.includes('article') ||
+    desc.includes('rss')
+  ) {
+    return '- **Empty / First Use** — Load initial feed or prompt user to select topics. Clear call to action.';
+  }
+  if (desc.includes('currency') || desc.includes('convert')) {
+    return '- **Empty / First Use** — Prompt user for amounts and currency pairs. Clear call to action.';
+  }
+
+  // Check known API names
+  if (apiKnownName) {
+    const knownName = apiKnownName.toLowerCase();
+    if (
+      knownName.includes('weather') ||
+      knownName.includes('openweather') ||
+      knownName.includes('open-meteo')
+    ) {
+      return '- **Empty / First Use** — Prompt user for location. Clear call to action.';
+    }
+    if (knownName.includes('crypto') || knownName.includes('coinbase')) {
+      return '- **Empty / First Use** — Prompt user for cryptocurrencies to track. Clear call to action.';
+    }
+  }
+
+  // Fallback to generic
+  return '- **Empty / First Use** — Prompt user for initial input. Clear call to action.';
+}
+
 // --- Section builders ---
 
 function sectionTitle(a: Partial<UserAnswers>): string {
@@ -355,9 +420,15 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
         '- Health endpoint: Add a `/health` route to your Worker returning `ok` (for uptime monitoring).',
       );
     }
-    lines.push(
-      '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
-    );
+    if (needsWorkerProxy(a)) {
+      lines.push(
+        '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
+      );
+    } else {
+      lines.push(
+        '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), consider integrating a lightweight analytics service.',
+      );
+    }
     lines.push(
       '- Errors: Log to `console.error()` with context. For production visibility, consider a free error tracker (Sentry free tier: 5K events/month).',
     );
@@ -408,14 +479,18 @@ function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
 function sectionUXStates(a: Partial<UserAnswers>): string {
   const lines = ['## UX States', ''];
 
-  lines.push(
-    '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
-  );
+  // Loading state: only for apps that fetch or save data
+  if (
+    hasResolvedExternalData(a) ||
+    (hasResolvedUserContent(a) && a.userInputType !== 'display-only')
+  ) {
+    lines.push(
+      '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
+    );
+  }
 
   if (hasResolvedExternalData(a)) {
-    lines.push(
-      '- **Empty / First Use** — Prompt user for initial input or location. Clear call to action.',
-    );
+    lines.push(generateEmptyStatePrompt(a.apiDescription, a.apiKnownName));
     lines.push(
       '- **Error (API)** — Friendly error message with "Try again" button. Never a dead end.',
     );
@@ -448,7 +523,12 @@ function sectionUXStates(a: Partial<UserAnswers>): string {
     );
   }
 
-  lines.push('- **Offline** — Show appropriate message. If PWA with cache, show last-known data.');
+  // Offline state: only for apps that fetch external data
+  if (hasResolvedExternalData(a)) {
+    lines.push(
+      '- **Offline** — Show appropriate message. If PWA with cache, show last-known data.',
+    );
+  }
 
   lines.push('');
   lines.push('### Show/Hide Pattern');

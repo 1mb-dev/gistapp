@@ -283,6 +283,77 @@ describe('generateSpec', () => {
     const spec = generateSpec(minimalAnswers);
     expect(spec).not.toContain('your AI assistant will handle the technical details');
   });
+
+  // --- Part 1: Generator Observation Fixes ---
+
+  // Issue 1: Analytics "Worker endpoint" text scoping
+  it('standard tier without Worker: omits Worker endpoint text', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Analytics');
+    expect(spec).not.toContain('Worker endpoint');
+    expect(spec).toContain('lightweight analytics service');
+  });
+
+  // Issue 2: Loading/Offline UX States guards
+  it('display-only user-content: omits Loading and Offline states', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'display-only',
+    });
+    expect(spec).not.toContain('**Loading**');
+    expect(spec).not.toContain('**Offline**');
+  });
+
+  it('external-data app: includes Loading and Offline states', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('**Loading**');
+    expect(spec).toContain('**Offline**');
+  });
+
+  it('static minimal-tier app: omits Loading and Offline', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('**Loading**');
+    expect(spec).not.toContain('**Offline**');
+  });
+
+  // Issue 3: Context-aware Empty state prompts
+  it('weather API: generates location-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Current weather and forecast for a location',
+    });
+    expect(spec).toContain('Prompt user for location');
+    expect(spec).toContain('**Empty / First Use**');
+  });
+
+  it('stock tracker API: generates ticker-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Stock prices and market data',
+    });
+    expect(spec).toContain('ticker symbol');
+  });
+
+  it('news feed API: generates topic-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'News articles from various sources',
+    });
+    expect(spec).toContain('feed');
+    expect(spec).toContain('topics');
+  });
+
+  it('unknown external-data app: uses generic prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Some unknown data source',
+      apiKnownName: 'CustomAPI',
+    });
+    expect(spec).toContain('initial input');
+    expect(spec).not.toContain('location');
+    expect(spec).not.toContain('ticker');
+  });
 });
 
 describe('generateFilename', () => {
