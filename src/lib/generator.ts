@@ -313,32 +313,30 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     }
   }
 
-  // Lightweight Libraries — tinyrouter for minimal tier (Astro has built-in routing)
+  // Lightweight Libraries — tinyrouter for minimal tier (Astro has built-in routing),
+  // indexed-cache for non-minimal tiers with cacheable external data
+  const libs: string[] = [];
   if (tier === 'minimal' && (a.pageCount === 'many' || a.pageCount === 'few')) {
-    lines.push('');
-    lines.push('### Recommended Lightweight Libraries');
-    lines.push(
-      '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
-    );
-    lines.push(
+    libs.push(
       '- [tinyrouter.js](https://github.com/knadh/tinyrouter.js) (~950 B) — Frontend routing for multi-page navigation',
     );
   }
-
-  // indexed-cache for non-minimal tiers with cacheable external data
   if (
     tier !== 'minimal' &&
     hasResolvedExternalData(a) &&
     (a.dataFreshness === 'hourly' || a.dataFreshness === 'daily')
   ) {
+    libs.push(
+      '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
+    );
+  }
+  if (libs.length > 0) {
     lines.push('');
     lines.push('### Recommended Lightweight Libraries');
     lines.push(
       '> From [oat.ink/other-libs](https://oat.ink/other-libs/) — tiny, zero-dependency libraries.',
     );
-    lines.push(
-      '- [indexed-cache.js](https://github.com/nicedoc/indexed-cache) (~2.1 KB) — IndexedDB caching for offline-friendly data',
-    );
+    lines.push(...libs);
   }
 
   // Observability (standard/full tier)
@@ -799,7 +797,8 @@ function sectionCSP(a: Partial<UserAnswers>): string {
     ? "'self'"
     : hasResolvedExternalData(a)
       ? "'self' https:"
-      : hasResolvedUserContent(a) && a.userInputType === 'simple-form'
+      : hasResolvedUserContent(a) &&
+          (a.userInputType === 'simple-form' || a.userInputType === 'user-saves-data')
         ? "'self' https:"
         : "'self'";
 
@@ -819,6 +818,12 @@ function sectionCSP(a: Partial<UserAnswers>): string {
   if (hasResolvedUserContent(a) && a.userInputType === 'simple-form') {
     lines.push(
       '> If using an external form handler (Formspree, Netlify Forms), tighten `connect-src` to its specific domain and add `form-action` directive.',
+    );
+  }
+
+  if (hasResolvedUserContent(a) && a.userInputType === 'user-saves-data') {
+    lines.push(
+      '> Tighten `connect-src` to your database provider domain (e.g., `https://*.supabase.co`) before deploying.',
     );
   }
 
@@ -929,12 +934,13 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
       lines.push(
         `${step++}. **Connect storage** — Wire forms to storage, confirm data round-trips (create → read → update → delete)`,
       );
+      lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
     } else if (a.userInputType === 'simple-form') {
       lines.push(
         `${step++}. **Form handler** — Connect form to submission endpoint (Formspree, Netlify Forms, or Worker)`,
       );
+      lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
     }
-    lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
   }
 
   if (needsCron(a)) {

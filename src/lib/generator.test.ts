@@ -239,6 +239,38 @@ describe('generateSpec', () => {
     const spec = generateSpec(userContentSavesDataAnswers);
     expect(spec).toContain('complexity');
   });
+
+  it('user-saves-data: produces standard tier', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Complexity tier: standard');
+  });
+
+  it('display-only: Data Flow describes static content, not form or API', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'display-only',
+    });
+    expect(spec).toContain('pre-loaded in HTML');
+    expect(spec).not.toContain('User fills out form');
+    expect(spec).not.toContain('persists to storage');
+  });
+
+  it('user-saves-data on personal scale: includes Budget Math', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'user-saves-data',
+      scale: 'personal',
+    });
+    expect(spec).toContain('## Free Tier Budget');
+    expect(spec).toContain('Database');
+  });
+
+  it('user-saves-data: CSP connect-src allows cloud database calls', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain("connect-src 'self' https:");
+  });
 });
 
 describe('generateFilename', () => {
