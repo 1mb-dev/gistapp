@@ -218,6 +218,19 @@ describe('dimensional keys via round-trip', () => {
     expect(keys.some((k: string) => k.endsWith(':spec_generated:minimal'))).toBe(true);
   });
 
+  it('spec_generated: creates composite persona:tier key', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(
+      JSON.stringify({ event: 'spec_generated', tier: 'minimal', persona: 'new-builder' }),
+      env,
+    );
+
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.includes('spec_generated:new-builder:minimal'))).toBe(true);
+  });
+
   it('creates dimensional key for question_completed with step index', async () => {
     const kv = createMockKV();
     const env = makeEnv(kv);

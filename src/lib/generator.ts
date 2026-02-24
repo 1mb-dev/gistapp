@@ -42,6 +42,7 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   }
 
   sections.push(sectionImplementationOrder(answers, tier));
+  sections.push(sectionDevelopmentStages(answers));
   sections.push(sectionDeployment(answers, tier));
   sections.push(sectionPostDeployment(answers));
   sections.push(sectionSuggestedPrompt(answers, tier));
@@ -148,6 +149,71 @@ function densityName(a: Partial<UserAnswers>): string {
 function frameworkForTier(tier: ComplexityTier): string {
   if (tier === 'minimal') return 'None — plain HTML/CSS/JS';
   return 'Astro (static site generator)';
+}
+
+/** Generate context-aware empty state prompt text based on API description or known name.
+ *  Falls back to generic text if no API context is available. */
+function generateEmptyStatePrompt(apiDescription?: string, apiKnownName?: string): string {
+  if (!apiDescription) {
+    return '- **Empty / First Use** — Prompt user for initial input. Clear call to action.';
+  }
+
+  const desc = apiDescription.toLowerCase();
+
+  // Pattern matching for common API types
+  if (
+    desc.includes('location') ||
+    desc.includes('weather') ||
+    desc.includes('city') ||
+    desc.includes('address')
+  ) {
+    return '- **Empty / First Use** — Prompt user for location (city, zip, or coordinates). Clear call to action.';
+  }
+  if (
+    desc.includes('stock') ||
+    desc.includes('ticker') ||
+    desc.includes('price') ||
+    desc.includes('market')
+  ) {
+    return '- **Empty / First Use** — Prompt user for ticker symbol or company name. Clear call to action.';
+  }
+  if (
+    desc.includes('search') ||
+    desc.includes('query') ||
+    desc.includes('keyword') ||
+    desc.includes('term')
+  ) {
+    return '- **Empty / First Use** — Prompt user for search query. Clear call to action.';
+  }
+  if (
+    desc.includes('news') ||
+    desc.includes('feed') ||
+    desc.includes('article') ||
+    desc.includes('rss')
+  ) {
+    return '- **Empty / First Use** — Load initial feed or prompt user to select topics. Clear call to action.';
+  }
+  if (desc.includes('currency') || desc.includes('convert')) {
+    return '- **Empty / First Use** — Prompt user for amounts and currency pairs. Clear call to action.';
+  }
+
+  // Check known API names
+  if (apiKnownName) {
+    const knownName = apiKnownName.toLowerCase();
+    if (
+      knownName.includes('weather') ||
+      knownName.includes('openweather') ||
+      knownName.includes('open-meteo')
+    ) {
+      return '- **Empty / First Use** — Prompt user for location. Clear call to action.';
+    }
+    if (knownName.includes('crypto') || knownName.includes('coinbase')) {
+      return '- **Empty / First Use** — Prompt user for cryptocurrencies to track. Clear call to action.';
+    }
+  }
+
+  // Fallback to generic
+  return '- **Empty / First Use** — Prompt user for initial input. Clear call to action.';
 }
 
 // --- Section builders ---
@@ -355,9 +421,15 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
         '- Health endpoint: Add a `/health` route to your Worker returning `ok` (for uptime monitoring).',
       );
     }
-    lines.push(
-      '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
-    );
+    if (needsWorkerProxy(a)) {
+      lines.push(
+        '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), add custom events via `navigator.sendBeacon()` to a Worker endpoint.',
+      );
+    } else {
+      lines.push(
+        '- Analytics: Hosting provider analytics cover page views. For funnel tracking (sign-up → action → conversion), consider integrating a lightweight analytics service.',
+      );
+    }
     lines.push(
       '- Errors: Log to `console.error()` with context. For production visibility, consider a free error tracker (Sentry free tier: 5K events/month).',
     );
@@ -408,14 +480,18 @@ function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
 function sectionUXStates(a: Partial<UserAnswers>): string {
   const lines = ['## UX States', ''];
 
-  lines.push(
-    '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
-  );
+  // Loading state: only for apps that fetch or save data
+  if (
+    hasResolvedExternalData(a) ||
+    (hasResolvedUserContent(a) && a.userInputType !== 'display-only')
+  ) {
+    lines.push(
+      '- **Loading** — Show loading indicator or skeleton while data loads. Show immediately on interaction.',
+    );
+  }
 
   if (hasResolvedExternalData(a)) {
-    lines.push(
-      '- **Empty / First Use** — Prompt user for initial input or location. Clear call to action.',
-    );
+    lines.push(generateEmptyStatePrompt(a.apiDescription, a.apiKnownName));
     lines.push(
       '- **Error (API)** — Friendly error message with "Try again" button. Never a dead end.',
     );
@@ -448,7 +524,12 @@ function sectionUXStates(a: Partial<UserAnswers>): string {
     );
   }
 
-  lines.push('- **Offline** — Show appropriate message. If PWA with cache, show last-known data.');
+  // Offline state: only for apps that fetch external data
+  if (hasResolvedExternalData(a)) {
+    lines.push(
+      '- **Offline** — Show appropriate message. If PWA with cache, show last-known data.',
+    );
+  }
 
   lines.push('');
   lines.push('### Show/Hide Pattern');
@@ -530,6 +611,12 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
       lines.push('1. Browser fetches data directly from API (no key needed, CORS-friendly)');
       lines.push('2. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)');
     }
+
+    // Mock data template for external APIs
+    if (hasResolvedExternalData(a)) {
+      lines.push('');
+      lines.push(generateMockDataTemplate(a.apiDescription, a.apiKnownName));
+    }
   }
 
   // Trust Boundary
@@ -572,6 +659,21 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
   lines.push('');
   lines.push('### Pre-Ship Checklist (for agentic system)');
   lines.push('> **IMPORTANT: The repo may be public. Complete before deploying.**');
+
+  // Local Development Checklist (before wiring real APIs)
+  if (
+    hasResolvedExternalData(a) ||
+    (hasResolvedUserContent(a) && a.userInputType !== 'display-only')
+  ) {
+    lines.push('');
+    lines.push('**Before integrating external services:**');
+    lines.push(
+      '- [ ] App builds and runs locally with mock/fixture data (`npm run dev` works immediately)',
+    );
+    lines.push('- [ ] All UX states testable with mock data: loading, error, empty, success');
+    lines.push('- [ ] UI approved by user (show mock data before wiring real API)');
+    lines.push('- [ ] Data shape verified (mock matches real API response structure)');
+  }
 
   if (needsWorkerProxy(a)) {
     lines.push('');
@@ -890,6 +992,128 @@ function sectionBudgetMath(a: Partial<UserAnswers>, tier: ComplexityTier): strin
     lines.push(
       '| Database (D1/Supabase/Firebase) | Varies (D1: 5M rows free, Supabase: 500MB free) | Depends on user base |',
     );
+  }
+
+  return lines.join('\n');
+}
+
+/** Generate mock data template based on API description.
+ *  Provides a shape guide for downstream AI to generate realistic sample values. */
+function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string): string {
+  if (!apiDescription) return '';
+
+  const desc = apiDescription.toLowerCase();
+  const lines = ['### Mock Data (for local development)', ''];
+  lines.push(
+    'Use this shape while building UI. Downstream AI will generate realistic sample values.',
+  );
+  lines.push('');
+
+  // Weather APIs
+  if (
+    desc.includes('weather') ||
+    desc.includes('forecast') ||
+    desc.includes('temperature') ||
+    apiKnownName?.toLowerCase().includes('weather')
+  ) {
+    lines.push('**Shape:**');
+    lines.push('```javascript');
+    lines.push('const mockWeather = {');
+    lines.push('  location: string,      // city name');
+    lines.push('  current: {');
+    lines.push('    temp: number,        // degrees (F or C)');
+    lines.push('    condition: string,   // weather description');
+    lines.push('    icon: string         // emoji or icon code');
+    lines.push('  },');
+    lines.push('  forecast: [            // array of future days');
+    lines.push('    { day: string, high: number, low: number, condition: string }');
+    lines.push('  ]');
+    lines.push('};');
+    lines.push('```');
+  }
+  // Stock/market APIs
+  else if (
+    desc.includes('stock') ||
+    desc.includes('price') ||
+    desc.includes('market') ||
+    apiKnownName?.toLowerCase().includes('stock')
+  ) {
+    lines.push('**Shape:**');
+    lines.push('```javascript');
+    lines.push('const mockStocks = [');
+    lines.push('  {');
+    lines.push('    ticker: string,      // symbol (e.g., "AAPL")');
+    lines.push('    price: number,       // current price');
+    lines.push('    change: number,      // price change');
+    lines.push('    changePercent: number, // percentage change');
+    lines.push('    name: string         // company name');
+    lines.push('  }');
+    lines.push('];');
+    lines.push('```');
+  }
+  // News/feed APIs
+  else if (desc.includes('news') || desc.includes('feed') || desc.includes('article')) {
+    lines.push('**Shape:**');
+    lines.push('```javascript');
+    lines.push('const mockArticles = [');
+    lines.push('  {');
+    lines.push('    title: string,       // headline');
+    lines.push('    description: string, // summary');
+    lines.push('    source: string,      // news source');
+    lines.push('    publishedAt: string, // ISO timestamp');
+    lines.push('    url: string          // article link');
+    lines.push('  }');
+    lines.push('];');
+    lines.push('```');
+  }
+  // Generic fallback
+  else {
+    lines.push('**Shape:**');
+    lines.push('');
+    lines.push('Define the expected data structure with:');
+    lines.push('- Field names (e.g., `id`, `title`, `timestamp`)');
+    lines.push('- Data types (string, number, array, object)');
+    lines.push('- Sample values or ranges');
+    lines.push('');
+    lines.push('Downstream AI will generate realistic mock data matching this shape.');
+  }
+
+  lines.push('');
+  lines.push(
+    '**Implementation:** Load this mock data while building UI. Replace with real API fetch when ready.',
+  );
+
+  return lines.join('\n');
+}
+
+function sectionDevelopmentStages(a: Partial<UserAnswers>): string {
+  const lines = ['## Development Stages', ''];
+  lines.push(
+    'Build locally first, integrate external services later. This lets you test the UI without dependencies.',
+  );
+  lines.push('');
+
+  lines.push('### Stage 1: Local (Mock Data)');
+  lines.push('- Render UI with mock/fixture data (defined in Implementation Order)');
+  lines.push('- Test all UX states locally: loading, error, success, empty');
+  lines.push('- No external API calls');
+  lines.push('- **Run:** `npm run dev` → app works immediately on localhost');
+  lines.push('');
+
+  if (hasResolvedExternalData(a) || hasResolvedUserContent(a)) {
+    lines.push('### Stage 2: Integration (Real Data)');
+    lines.push('- Replace mock data with real API/database fetch');
+    lines.push('- Test with actual responses (may differ from mock assumptions)');
+    lines.push('- Add retry/error handling for real failure modes');
+    lines.push('');
+
+    lines.push('### Stage 3: Polish (Nice-to-Haves)');
+    lines.push('- Analytics tracking');
+    if (shouldRecommendPWA(a)) {
+      lines.push('- Service worker for offline caching');
+    }
+    lines.push('- Performance optimizations');
+    lines.push('- Advanced features');
   }
 
   return lines.join('\n');

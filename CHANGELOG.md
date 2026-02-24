@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-02-24
+
+### Added
+
+- Generator: Development Stages section (all specs) — progressive three-stage pattern: Local (mock), Integration (real API), Polish (optional)
+- Generator: Mock Data templates (external-data specs) — context-aware structure guides (weather: location/temp, stock: ticker/price, news: title/date)
+- Generator: Local Development Checklist (data-dependent specs) — pre-flight validation before wiring real APIs
+- 11 new tests covering all three new sections and edge cases (139 total)
+
+### Changed
+
+- Generator: WiringGuide now includes mock data templates for API-based apps
+- Generator: Pre-Ship Checklist now emphasizes building locally first before external integrations
+- Service worker: bumped cache version to gist-v8
+
+### Why
+
+Specs now explicitly guide AI assistants to build locally-testable apps (mock-first, integrate-later). Solves "hard localhost dependencies" problem: developers can run `npm run dev` and see the app working immediately, without requiring external API setup upfront.
+
 ## [1.3.0] - 2026-02-24
 
 ### Added

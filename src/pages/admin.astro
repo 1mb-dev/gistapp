@@ -68,6 +68,12 @@ import SiteHeader from '../components/SiteHeader.astro';
               <div class="panel-body" id="actions-body"></div>
               <p class="panel-insight" id="actions-insight"></p>
             </div>
+
+            <div class="panel panel-full" id="panel-persona-tier">
+              <h2 class="panel-title">Persona × Tier matrix</h2>
+              <div class="panel-body" id="persona-tier-body"></div>
+              <p class="panel-insight" id="persona-tier-insight"></p>
+            </div>
           </div>
         </div>
       </div>
@@ -342,6 +348,81 @@ import SiteHeader from '../components/SiteHeader.astro';
     }
   }
 
+  function renderPersonaTierMatrix(data: StatsResponse): void {
+    const body = document.getElementById('persona-tier-body')!;
+    const insight = document.getElementById('persona-tier-insight')!;
+    body.replaceChildren();
+
+    // Parse composite keys: "spec_generated:persona:tier"
+    const matrix: Record<string, Record<string, number>> = {};
+
+    for (const day of Object.values(data)) {
+      for (const [key, count] of Object.entries(day)) {
+        const parts = key.split(':');
+        if (parts[0] === 'spec_generated' && parts.length === 4) {
+          const [, , persona, tier] = parts;
+          if (!matrix[persona]) matrix[persona] = {};
+          matrix[persona][tier] = (matrix[persona][tier] ?? 0) + count;
+        }
+      }
+    }
+
+    // If no composite data, show empty state
+    if (Object.keys(matrix).length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'panel-empty';
+      empty.textContent = 'No persona×tier data yet.';
+      body.appendChild(empty);
+      return;
+    }
+
+    // Render as stacked bars per tier
+    const tiers = ['minimal', 'standard', 'full'];
+    const personas = Object.keys(matrix);
+
+    for (const tier of tiers) {
+      const tierCol = document.createElement('div');
+      tierCol.className = 'tier-section';
+
+      const tierLabel = document.createElement('h3');
+      tierLabel.className = 'tier-label';
+      tierLabel.textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+      tierCol.appendChild(tierLabel);
+
+      let tierTotal = 0;
+      for (const persona of personas) {
+        tierTotal += matrix[persona]?.[tier] ?? 0;
+      }
+
+      for (const persona of personas) {
+        const count = matrix[persona]?.[tier] ?? 0;
+        tierCol.appendChild(
+          createMetricBar(
+            `${persona} (${pct(count, tierTotal)})`,
+            count,
+            Math.max(...personas.map((p) => matrix[p]?.[tier] ?? 0)) || 1,
+          ),
+        );
+      }
+
+      body.appendChild(tierCol);
+    }
+
+    // Insight: which persona×tier combo is most common
+    let topCombo = '';
+    let topCount = 0;
+    for (const [persona, tiers] of Object.entries(matrix)) {
+      for (const [tier, count] of Object.entries(tiers)) {
+        if (count > topCount) {
+          topCount = count;
+          topCombo = `${persona}-${tier}`;
+        }
+      }
+    }
+
+    insight.textContent = topCombo ? `Most common: ${topCombo} (${topCount})` : '';
+  }
+
   function renderDashboard(data: StatsResponse): void {
     const dates = Object.keys(data);
     const hasFullData = Object.keys(fullData).length > 0;
@@ -368,6 +449,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     renderTiers(data);
     renderSatisfaction(data);
     renderActions(data);
+    renderPersonaTierMatrix(data);
   }
 
   // Period selector
@@ -666,6 +748,20 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .tiers-heading {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    margin-bottom: var(--space-3);
+  }
+
+  /* Persona×Tier section */
+  .tier-section {
+    margin-bottom: var(--space-6);
+  }
+
+  .tier-label {
     font-size: var(--text-xs);
     font-weight: var(--weight-medium);
     color: var(--color-text-muted);

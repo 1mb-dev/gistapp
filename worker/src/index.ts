@@ -78,7 +78,8 @@ function safeDimensionValue(val: unknown): string | null {
 }
 
 /** Derive dimensional KV keys from an event payload.
- *  Each event = 1–3 writes. Budget: ~300–1000 events/day on free tier (1K writes/day). */
+ *  Each event = 1–3 writes. Budget: ~300–1000 events/day on free tier (1K writes/day).
+ *  For spec_generated, also creates composite persona:tier key for cross-dimensional analysis. */
 function getDimensionalKeys(
   date: string,
   event: AllowedEvent,
@@ -91,8 +92,14 @@ function getDimensionalKeys(
     if (v) keys.push(`${date}:persona_selected:${v}`);
   }
   if (event === 'spec_generated') {
-    const v = safeDimensionValue(data.tier);
-    if (v) keys.push(`${date}:spec_generated:${v}`);
+    const tier = safeDimensionValue(data.tier);
+    if (tier) keys.push(`${date}:spec_generated:${tier}`);
+
+    // Add composite persona:tier key for dashboard cross-dimensional analysis
+    const persona = safeDimensionValue(data.persona);
+    if (tier && persona) {
+      keys.push(`${date}:spec_generated:${persona}:${tier}`);
+    }
   }
   if (
     event === 'question_completed' &&

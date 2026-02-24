@@ -283,6 +283,162 @@ describe('generateSpec', () => {
     const spec = generateSpec(minimalAnswers);
     expect(spec).not.toContain('your AI assistant will handle the technical details');
   });
+
+  // --- Part 1: Generator Observation Fixes ---
+
+  // Issue 1: Analytics "Worker endpoint" text scoping
+  it('standard tier without Worker: omits Worker endpoint text', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Analytics');
+    expect(spec).not.toContain('Worker endpoint');
+    expect(spec).toContain('lightweight analytics service');
+  });
+
+  // Issue 2: Loading/Offline UX States guards
+  it('display-only user-content: omits Loading and Offline states', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'display-only',
+    });
+    expect(spec).not.toContain('**Loading**');
+    expect(spec).not.toContain('**Offline**');
+  });
+
+  it('external-data app: includes Loading and Offline states', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('**Loading**');
+    expect(spec).toContain('**Offline**');
+  });
+
+  it('static minimal-tier app: omits Loading and Offline', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('**Loading**');
+    expect(spec).not.toContain('**Offline**');
+  });
+
+  // Issue 3: Context-aware Empty state prompts
+  it('weather API: generates location-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Current weather and forecast for a location',
+    });
+    expect(spec).toContain('Prompt user for location');
+    expect(spec).toContain('**Empty / First Use**');
+  });
+
+  it('stock tracker API: generates ticker-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Stock prices and market data',
+    });
+    expect(spec).toContain('ticker symbol');
+  });
+
+  it('news feed API: generates topic-specific prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'News articles from various sources',
+    });
+    expect(spec).toContain('feed');
+    expect(spec).toContain('topics');
+  });
+
+  it('unknown external-data app: uses generic prompt', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Some unknown data source',
+      apiKnownName: 'CustomAPI',
+    });
+    expect(spec).toContain('initial input');
+    expect(spec).not.toContain('location');
+    expect(spec).not.toContain('ticker');
+  });
+
+  // --- Localhost-first development improvements ---
+
+  it('all specs include Development Stages section', () => {
+    const minimalSpec = generateSpec(minimalAnswers);
+    const standardSpec = generateSpec(standardAnswers);
+    expect(minimalSpec).toContain('## Development Stages');
+    expect(standardSpec).toContain('## Development Stages');
+  });
+
+  it('Development Stages shows Stage 1 (Local) for all specs', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('### Stage 1: Local (Mock Data)');
+    expect(spec).toContain('app works immediately on localhost');
+  });
+
+  it('Development Stages shows Stage 2 (Integration) only for specs with data dependencies', () => {
+    const minimalSpec = generateSpec(minimalAnswers);
+    const externalDataSpec = generateSpec(standardAnswers);
+    expect(minimalSpec).not.toContain('### Stage 2: Integration');
+    expect(externalDataSpec).toContain('### Stage 2: Integration');
+  });
+
+  it('Development Stages shows Stage 3 (Polish) for specs with data dependencies', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('### Stage 3: Polish');
+  });
+
+  it('weather API includes mock data template with location fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Current weather and 7-day forecast for any location',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('location: string');
+    expect(spec).toContain('temp: number');
+    expect(spec).toContain('condition: string');
+  });
+
+  it('stock API includes mock data template with ticker fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Real-time stock prices and market data',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('ticker: string');
+    expect(spec).toContain('price: number');
+  });
+
+  it('news API includes mock data template with article fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Latest news articles and headlines',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('title: string');
+    expect(spec).toContain('description: string');
+    expect(spec).toContain('publishedAt: string');
+  });
+
+  it('external-data specs include Local Development Checklist', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('Before integrating external services');
+    expect(spec).toContain('App builds and runs locally with mock/fixture data');
+    expect(spec).toContain('All UX states testable with mock data');
+  });
+
+  it('specs without external data omit Local Development Checklist', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('Before integrating external services');
+  });
+
+  it('user-saves-data specs include Local Development Checklist', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Before integrating external services');
+  });
+
+  it('display-only user-content specs omit Local Development Checklist', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'display-only',
+    });
+    expect(spec).not.toContain('Before integrating external services');
+  });
 });
 
 describe('generateFilename', () => {

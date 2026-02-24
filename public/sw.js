@@ -1,5 +1,5 @@
 // Gist service worker — offline-first static site caching
-const CACHE_VERSION = 'gist-v7';
+const CACHE_VERSION = 'gist-v8';
 const PRECACHE_URLS = [
   '/',
   '/create/',
