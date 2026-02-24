@@ -324,6 +324,40 @@ describe('POST then GET round-trip', () => {
   });
 });
 
+describe('page_viewed event', () => {
+  it('accepts page_viewed event and returns 202', async () => {
+    const res = await postEvent(JSON.stringify({ event: 'page_viewed' }));
+    expect(res.status).toBe(202);
+  });
+
+  it('page_viewed is visible in stats round-trip', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'page_viewed' }), env);
+    await postEvent(JSON.stringify({ event: 'page_viewed' }), env);
+
+    const res = await getStats('test-secret-token', 1, env);
+    const data = (await res.json()) as Record<string, Record<string, number>>;
+    const dates = Object.keys(data);
+    expect(dates.length).toBe(1);
+    expect(data[dates[0]]['page_viewed']).toBe(2);
+  });
+});
+
+describe('KV expiration TTL', () => {
+  it('includes 90-day TTL on all kv.put calls', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'persona_selected', persona: 'developer' }), env);
+
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    expect(putCalls.length).toBeGreaterThan(0);
+    for (const call of putCalls) {
+      expect(call[2]).toMatchObject({ expirationTtl: 7_776_000 });
+    }
+  });
+});
+
 describe('unknown routes', () => {
   it('returns 404', async () => {
     const request = new Request('https://worker.test/unknown', { method: 'GET' });

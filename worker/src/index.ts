@@ -4,6 +4,7 @@ interface Env {
 }
 
 const ALLOWED_EVENTS = [
+  'page_viewed',
   'persona_selected',
   'question_completed',
   'question_skipped',
@@ -45,7 +46,10 @@ async function increment(kv: KVNamespace, key: string): Promise<void> {
     return;
   }
   const newCount = (isNaN(current) ? 0 : current) + 1;
-  await kv.put(key, String(newCount), { metadata: { count: newCount } });
+  await kv.put(key, String(newCount), {
+    expirationTtl: 7_776_000, // 90 days
+    metadata: { count: newCount },
+  });
 }
 
 /** Constant-time string comparison to prevent timing attacks on token auth.
