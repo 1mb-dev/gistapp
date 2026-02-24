@@ -354,6 +354,91 @@ describe('generateSpec', () => {
     expect(spec).not.toContain('location');
     expect(spec).not.toContain('ticker');
   });
+
+  // --- Localhost-first development improvements ---
+
+  it('all specs include Development Stages section', () => {
+    const minimalSpec = generateSpec(minimalAnswers);
+    const standardSpec = generateSpec(standardAnswers);
+    expect(minimalSpec).toContain('## Development Stages');
+    expect(standardSpec).toContain('## Development Stages');
+  });
+
+  it('Development Stages shows Stage 1 (Local) for all specs', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('### Stage 1: Local (Mock Data)');
+    expect(spec).toContain('app works immediately on localhost');
+  });
+
+  it('Development Stages shows Stage 2 (Integration) only for specs with data dependencies', () => {
+    const minimalSpec = generateSpec(minimalAnswers);
+    const externalDataSpec = generateSpec(standardAnswers);
+    expect(minimalSpec).not.toContain('### Stage 2: Integration');
+    expect(externalDataSpec).toContain('### Stage 2: Integration');
+  });
+
+  it('Development Stages shows Stage 3 (Polish) for specs with data dependencies', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('### Stage 3: Polish');
+  });
+
+  it('weather API includes mock data template with location fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Current weather and 7-day forecast for any location',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('location: string');
+    expect(spec).toContain('temp: number');
+    expect(spec).toContain('condition: string');
+  });
+
+  it('stock API includes mock data template with ticker fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Real-time stock prices and market data',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('ticker: string');
+    expect(spec).toContain('price: number');
+  });
+
+  it('news API includes mock data template with article fields', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      apiDescription: 'Latest news articles and headlines',
+    });
+    expect(spec).toContain('### Mock Data (for local development)');
+    expect(spec).toContain('title: string');
+    expect(spec).toContain('description: string');
+    expect(spec).toContain('publishedAt: string');
+  });
+
+  it('external-data specs include Local Development Checklist', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('Before integrating external services');
+    expect(spec).toContain('App builds and runs locally with mock/fixture data');
+    expect(spec).toContain('All UX states testable with mock data');
+  });
+
+  it('specs without external data omit Local Development Checklist', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('Before integrating external services');
+  });
+
+  it('user-saves-data specs include Local Development Checklist', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Before integrating external services');
+  });
+
+  it('display-only user-content specs omit Local Development Checklist', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'user-content',
+      userInputType: 'display-only',
+    });
+    expect(spec).not.toContain('Before integrating external services');
+  });
 });
 
 describe('generateFilename', () => {
