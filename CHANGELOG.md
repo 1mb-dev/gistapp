@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-24
+
+### Fixed
+
+- UX: reduced spec-navigation delay from 1200ms to 500ms for natural pacing
+- UX: `saveProgress()` failures now surface an inline note instead of failing silently
+- UX: `downloadSpec()` failures show "Download failed — try again" on button for 3 seconds
+- A11y: disabled Next button now has `aria-describedby` hint ("Select an option to continue")
+- A11y: empty admin token field shows `aria-invalid` outline with clear-on-input
+- Admin: loading spinner CSS no longer overrides `hidden` attribute (`display: flex` → `:not([hidden])`)
+- Service worker: bumped cache version to gist-v6
+
 ## [1.2.0] - 2026-02-24
 
 ### Added
@@ -118,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed dead `free-text` response mode from types
 - Removed unreachable `api-details` branch in `renderOptions()`
 
+[1.2.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.2.1
 [1.2.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.2.0
 [1.1.1]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.1
 [1.1.0]: https://github.com/1mb-dev/gistapp/releases/tag/v1.1.0
