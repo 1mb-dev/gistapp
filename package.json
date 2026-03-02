@@ -22,15 +22,15 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.0",
-    "astro": "^5.17.1"
+    "astro": "^5.18.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
     "prettier": "^3.8.1",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^5.9.3",
-    "@cloudflare/workers-types": "^4.20250214.0",
+    "@cloudflare/workers-types": "^4.20260305.0",
     "vitest": "^4.0.18",
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.69.0"
   }
 }
