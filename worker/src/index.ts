@@ -179,11 +179,6 @@ async function handleStats(request: Request, env: Env): Promise<Response> {
   // Auth succeeded. Clear the rate limit counter for this IP.
   await env.INSIGHTS.delete(minuteKey);
 
-  if (!env.INSIGHTS) {
-    console.error('INSIGHTS KV binding is not configured');
-    return corsResponse('Service misconfigured', 500);
-  }
-
   const url = new URL(request.url);
   const days = Math.max(1, Math.min(30, Number(url.searchParams.get('days')) || 7));
 
