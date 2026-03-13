@@ -68,12 +68,23 @@ export const tierDescriptions: Record<
     description: 'Full infrastructure with caching, scheduled updates, and API proxy.',
     components: [
       'Astro static site',
-      'Cloudflare Worker (API proxy + cache writer + Cron Trigger)',
+      'Cloudflare Worker (API proxy + cache writer)',
       'Cloudflare KV (data cache)',
       'GitHub Actions (CI/CD)',
     ],
   },
 };
+
+/** Get tier components with answer-aware adjustments (e.g. Cron Trigger only when needed) */
+export function getTierComponents(answers: Partial<UserAnswers>): string[] {
+  const tier = determineComplexity(answers);
+  const base = [...tierDescriptions[tier].components];
+  if (tier === 'full' && needsCron(answers)) {
+    const idx = base.findIndex((c) => c.includes('cache writer'));
+    if (idx !== -1) base[idx] = base[idx].replace('cache writer)', 'cache writer + Cron Trigger)');
+  }
+  return base;
+}
 
 /** Determine if a Worker proxy is needed based on answers */
 export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {

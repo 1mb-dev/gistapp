@@ -40,7 +40,7 @@ import SiteHeader from '../components/SiteHeader.astro';
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <div class="question-counter" id="question-counter" aria-live="polite"></div>
-        <p class="save-signal" id="save-signal" hidden>Your progress is saved automatically</p>
+        <p class="save-signal" id="save-signal" hidden>&#x2713; Progress saved</p>
 
         <div id="question-container" class="question-container" role="form" tabindex="-1">
           <!-- Questions rendered dynamically -->
@@ -112,6 +112,7 @@ import SiteHeader from '../components/SiteHeader.astro';
   import {
     determineComplexity,
     tierDescriptions,
+    getTierComponents,
     needsWorkerProxy,
     needsCron,
     shouldRecommendPWA,
@@ -530,6 +531,8 @@ import SiteHeader from '../components/SiteHeader.astro';
       'Hosted on your chosen platform': 'Free web hosting to put your app online',
       'Astro static site': 'A fast website builder (Astro)',
       'Cloudflare Worker (API proxy)': 'A secure server for your data (Cloudflare Worker)',
+      'Cloudflare Worker (API proxy + cache writer)':
+        'A secure server for your data (Cloudflare Worker)',
       'Cloudflare Worker (API proxy + cache writer + Cron Trigger)':
         'A secure server that keeps data fresh automatically (Cloudflare Worker)',
       'Cloudflare KV (data cache)': 'Fast data storage (Cloudflare KV)',
@@ -538,7 +541,7 @@ import SiteHeader from '../components/SiteHeader.astro';
 
     const list = document.createElement('ul');
     list.className = 'stack-components';
-    for (const comp of tierInfo.components) {
+    for (const comp of getTierComponents(answers)) {
       const li = document.createElement('li');
       li.textContent = newBuilder ? (componentTranslations[comp] ?? comp) : comp;
       list.appendChild(li);
@@ -731,8 +734,8 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .save-signal {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
     margin: var(--space-1) 0 0;
   }
 

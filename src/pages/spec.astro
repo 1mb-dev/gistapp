@@ -25,8 +25,9 @@ import SiteHeader from '../components/SiteHeader.astro';
         </div>
 
         <div class="spec-actions-top">
-          <button id="btn-download" class="btn btn-primary" type="button"> Download .md </button>
-          <button id="btn-copy" class="btn btn-ghost" type="button"> Copy to clipboard </button>
+          <button id="btn-copy" class="btn btn-primary" type="button"> Copy to clipboard </button>
+          <button id="btn-download" class="btn btn-ghost" type="button"> Download .md </button>
+          <button id="btn-share" class="btn btn-ghost" type="button"> Share link </button>
         </div>
 
         <div class="spec-preview-window">
@@ -40,8 +41,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         </div>
 
         <div class="spec-actions-bottom">
-          <button id="btn-download-2" class="btn btn-primary" type="button"> Download .md </button>
-          <button id="btn-copy-2" class="btn btn-ghost" type="button"> Copy to clipboard </button>
+          <button id="btn-copy-2" class="btn btn-primary" type="button"> Copy to clipboard </button>
+          <button id="btn-download-2" class="btn btn-ghost" type="button"> Download .md </button>
         </div>
       </div>
     </section>
@@ -137,13 +138,58 @@ import SiteHeader from '../components/SiteHeader.astro';
   import { determineComplexity, tierDescriptions } from '../lib/complexity';
   import { track } from '../lib/insights';
 
-  // --- Load answers from sessionStorage ---
-  let raw: string | null = null;
-  try {
-    raw = sessionStorage.getItem('gist-answers');
-  } catch {
-    // sessionStorage blocked (private browsing, storage disabled, etc.)
+  // --- Compression helpers for shareable URLs ---
+  async function compressAnswers(answers: Partial<UserAnswers>): Promise<string> {
+    const json = JSON.stringify(answers);
+    const encoder = new TextEncoder();
+    const stream = new Blob([encoder.encode(json)])
+      .stream()
+      .pipeThrough(new CompressionStream('deflate'));
+    const compressed = await new Response(stream).arrayBuffer();
+    // base64url encoding (URL-safe, no padding)
+    const bytes = new Uint8Array(compressed);
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
+
+  async function decompressAnswers(encoded: string): Promise<Partial<UserAnswers> | null> {
+    try {
+      // Restore base64 from base64url
+      let b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+      const text = await new Response(stream).text();
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+
+  // --- Load answers: URL fragment first, then sessionStorage ---
+  let raw: string | null = null;
+  let isSharedSpec = false;
+  const fragment = window.location.hash.slice(1);
+
+  if (fragment) {
+    const shared = await decompressAnswers(fragment);
+    if (shared) {
+      raw = JSON.stringify(shared);
+      isSharedSpec = true;
+    }
+  }
+
+  if (!raw) {
+    try {
+      raw = sessionStorage.getItem('gist-answers');
+    } catch {
+      // sessionStorage blocked (private browsing, storage disabled, etc.)
+    }
+  }
+
   const noAnswers = document.getElementById('no-answers')!;
   const specSection = document.getElementById('spec-preview-section')!;
   const whatsNext = document.getElementById('whats-next')!;
@@ -177,8 +223,12 @@ import SiteHeader from '../components/SiteHeader.astro';
         // Show sections
         specSection.hidden = false;
         whatsNext.hidden = false;
-        feedbackSection.hidden = false;
+        feedbackSection.hidden = isSharedSpec;
         startOver.hidden = false;
+
+        if (isSharedSpec) {
+          track('shared_spec_viewed', { tier });
+        }
 
         // Populate spec title and meta
         const specTitle = document.getElementById('spec-title')!;
@@ -288,10 +338,17 @@ import SiteHeader from '../components/SiteHeader.astro';
 
         // Copy spec + prompt (combined)
         const btnCopyAll = document.getElementById('btn-copy-all') as HTMLButtonElement;
+        const prompt = promptBox.textContent ?? '';
+        const combined = `${spec}\n\n---\n\n${prompt}`;
+
+        // Hidden element for clipboard fallback (so both spec + prompt are selectable)
+        const combinedEl = document.createElement('pre');
+        combinedEl.textContent = combined;
+        combinedEl.style.cssText = 'position:absolute;left:-9999px;white-space:pre-wrap;';
+        specSection.appendChild(combinedEl);
+
         btnCopyAll.addEventListener('click', async () => {
           track('spec_and_prompt_copied', { tier });
-          const prompt = promptBox.textContent ?? '';
-          const combined = `${spec}\n\n---\n\n${prompt}`;
           try {
             await navigator.clipboard.writeText(combined);
             const original = btnCopyAll.textContent;
@@ -301,13 +358,34 @@ import SiteHeader from '../components/SiteHeader.astro';
             }, 2000);
           } catch {
             const range = document.createRange();
-            range.selectNodeContents(specCode);
+            range.selectNodeContents(combinedEl);
             const sel = window.getSelection();
             sel?.removeAllRanges();
             sel?.addRange(range);
             btnCopyAll.textContent = 'Selected \u2014 press Ctrl+C to copy';
             setTimeout(() => {
               btnCopyAll.textContent = 'Copy spec + prompt';
+            }, 3000);
+          }
+        });
+
+        // Share link
+        const btnShare = document.getElementById('btn-share') as HTMLButtonElement;
+        btnShare.addEventListener('click', async () => {
+          track('spec_shared', { tier });
+          try {
+            const encoded = await compressAnswers(answers as Partial<UserAnswers>);
+            const shareUrl = `${window.location.origin}/spec#${encoded}`;
+            await navigator.clipboard.writeText(shareUrl);
+            const original = btnShare.textContent;
+            btnShare.textContent = 'Link copied!';
+            setTimeout(() => {
+              btnShare.textContent = original;
+            }, 2000);
+          } catch {
+            btnShare.textContent = 'Could not create link';
+            setTimeout(() => {
+              btnShare.textContent = 'Share link';
             }, 3000);
           }
         });

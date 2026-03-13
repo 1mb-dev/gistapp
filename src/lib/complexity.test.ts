@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { determineComplexity, needsWorkerProxy, needsCron, shouldRecommendPWA } from './complexity';
+import {
+  determineComplexity,
+  needsWorkerProxy,
+  needsCron,
+  shouldRecommendPWA,
+  getTierComponents,
+} from './complexity';
 
 describe('determineComplexity', () => {
   it('returns minimal for empty answers', () => {
@@ -187,5 +193,31 @@ describe('shouldRecommendPWA', () => {
 
   it('returns true for daily + unsure (resolves to both)', () => {
     expect(shouldRecommendPWA({ usageFrequency: 'daily', deviceTarget: 'unsure' })).toBe(true);
+  });
+});
+
+describe('getTierComponents', () => {
+  it('includes Cron Trigger for full tier with hourly freshness', () => {
+    const components = getTierComponents({
+      dataFreshness: 'hourly',
+      scale: 'public',
+      pageCount: 'many',
+    });
+    expect(components.some((c) => c.includes('Cron Trigger'))).toBe(true);
+  });
+
+  it('omits Cron Trigger for full tier without cron need (realtime)', () => {
+    const components = getTierComponents({
+      dataFreshness: 'realtime',
+      scale: 'public',
+      pageCount: 'many',
+    });
+    expect(components.some((c) => c.includes('Cron Trigger'))).toBe(false);
+    expect(components.some((c) => c.includes('cache writer'))).toBe(true);
+  });
+
+  it('returns minimal components for empty answers', () => {
+    const components = getTierComponents({});
+    expect(components).toContain('Static HTML/CSS/JS');
   });
 });

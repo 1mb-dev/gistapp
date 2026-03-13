@@ -585,6 +585,18 @@ describe('generateSpec', () => {
     const spec = generateSpec(standardAnswers);
     expect(spec).toContain('if API requires auth');
   });
+
+  it('CSP style-src uses self without unsafe-inline', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain("style-src 'self'");
+    expect(spec).not.toContain('unsafe-inline');
+  });
+
+  it('footer is a CTA, not just attribution', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('create your own build-ready spec');
+    expect(spec).toContain('gist.1mb.dev');
+  });
 });
 
 describe('generateFilename', () => {
