@@ -330,7 +330,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
 
     if (needsCron(a)) {
       lines.push(
-        '- Caching strategy: Worker Cron Trigger refreshes KV cache on schedule. Frontend reads from KV (fast, no API key exposed).',
+        '- Caching strategy: Scheduled cron refreshes KV cache on a timer. Frontend reads from KV (fast, no API key exposed).',
       );
     } else if (needsWorkerProxy(a)) {
       lines.push(
@@ -348,7 +348,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   if (tier === 'full') {
     lines.push('- Cache: Cloudflare KV (stores cached API responses)');
     lines.push('- Proxy: Cloudflare Worker (API proxy + cache writer)');
-    lines.push('- Cron: Cloudflare Worker Cron Trigger (scheduled data refresh)');
+    lines.push('- Cron: Scheduled data refresh (Cloudflare Cron Trigger or GitHub Actions cron — choose based on your stack)');
     lines.push('- CI: GitHub Actions (deploy)');
   } else if (tier === 'standard' && needsWorkerProxy(a)) {
     lines.push(
@@ -362,6 +362,30 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     } else {
       lines.push('- CI: None needed (push to deploy)');
     }
+  }
+
+  // Worker API Design (when Worker is part of architecture)
+  if (tier === 'full' || (tier === 'standard' && needsWorkerProxy(a))) {
+    lines.push('');
+    lines.push('### Worker API Design');
+    lines.push('| Route | Method | Purpose |');
+    lines.push('|-------|--------|---------|');
+    lines.push('| `/api/data` | GET | Proxy upstream API requests (add auth, return JSON) |');
+    lines.push('| `/health` | GET | Health check (returns 200) |');
+    if (needsCron(a)) {
+      lines.push('| `scheduled` | Cron | Refresh KV cache on schedule |');
+    }
+    lines.push('');
+    lines.push('**Request:** Browser fetches from Worker origin. No auth headers from browser.');
+    lines.push(
+      '**Response:** JSON passthrough from upstream API. Worker adds CORS headers for your Pages domain.',
+    );
+    lines.push(
+      '**Errors:** Return `{ error: string, status: number }`. Never expose upstream API keys in error messages.',
+    );
+    lines.push(
+      '**CORS:** Set `Access-Control-Allow-Origin` to your Pages deployment URL.',
+    );
   }
 
   // APIs to Integrate (conditional)
@@ -630,7 +654,9 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
     }
 
     if (needsCron(a)) {
-      lines.push('- GitHub Actions (private): holds secrets for cron trigger authorization');
+      lines.push(
+        '- Scheduled refresh: use Cloudflare Cron Trigger (`wrangler.toml` → `[triggers]`) or GitHub Actions cron — either invokes the Worker to refresh the cache',
+      );
     }
   }
 
@@ -737,8 +763,17 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push('| `style.css` | Externalized styles, `:root` tokens, responsive, dark mode |');
     lines.push('| `app.js` | Application logic (`<script defer>`) |');
   } else {
-    lines.push('| `src/` | Astro pages and components |');
-    lines.push('| `astro.config.mjs` | Astro configuration |');
+    lines.push('| `src/pages/index.astro` | Home page |');
+    lines.push('| `src/layouts/Base.astro` | HTML shell (`<head>`, meta tags, slots) |');
+    lines.push('| `src/components/` | Reusable Astro components |');
+    lines.push('| `src/styles/global.css` | Design tokens, reset, responsive styles |');
+    lines.push('| `astro.config.mjs` | Astro configuration (static output) |');
+    lines.push('| `package.json` | Dependencies and scripts |');
+  }
+
+  if (tier === 'full' || (tier === 'standard' && needsWorkerProxy(a))) {
+    lines.push('| `worker/src/index.ts` | Cloudflare Worker (API proxy) |');
+    lines.push('| `worker/wrangler.toml` | Worker configuration (no secrets — set via CLI) |');
   }
 
   lines.push('| `favicon.svg` | App icon, dark-mode aware SVG |');
@@ -750,9 +785,8 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
     '| `humans.txt` | Credits: team, tools, site info ([humanstxt.org](http://humanstxt.org/)) |',
   );
 
-  if (needsWorkerProxy(a)) {
+  if (needsWorkerProxy(a) || needsCron(a)) {
     lines.push('| `.env.example` | Placeholder for API keys (never real values) |');
-    lines.push('| `wrangler.toml` | Worker config (no secrets — set via CLI) |');
   }
 
   if (tier !== 'minimal') {
@@ -1168,7 +1202,7 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
 
   if (needsCron(a)) {
     lines.push(
-      `${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint and \`scheduled\` handler for Cron Trigger`,
+      `${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint and \`scheduled\` handler for cache refresh`,
     );
   } else if (needsWorkerProxy(a)) {
     lines.push(
@@ -1202,7 +1236,7 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
 
   if (needsCron(a)) {
     lines.push(
-      `${step++}. **Cron** — Configure Cron Trigger in \`wrangler.toml\` (\`[triggers]\` → \`crons = ["0 * * * *"]\`). Implement \`scheduled\` event handler in Worker`,
+      `${step++}. **Cron** — Set up scheduled cache refresh. Option A: Cloudflare Cron Trigger (\`wrangler.toml\` → \`[triggers]\` → \`crons = ["0 * * * *"]\`). Option B: GitHub Actions cron that calls the Worker refresh endpoint`,
     );
   }
 
@@ -1284,7 +1318,7 @@ function sectionPostDeployment(a: Partial<UserAnswers>): string {
   }
 
   if (needsCron(a)) {
-    lines.push('- [ ] GitHub Actions cron runs successfully — failed crons mean stale data');
+    lines.push('- [ ] Scheduled cron runs successfully — failed crons mean stale data');
   }
 
   lines.push('- [ ] CHANGELOG.md created ([Keep a Changelog](https://keepachangelog.com/) format)');
