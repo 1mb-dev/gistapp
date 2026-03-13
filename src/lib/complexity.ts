@@ -68,9 +68,9 @@ export const tierDescriptions: Record<
     description: 'Full infrastructure with caching, scheduled updates, and API proxy.',
     components: [
       'Astro static site',
-      'Cloudflare Worker (API proxy + cache writer)',
+      'Cloudflare Worker (API proxy + cache writer + Cron Trigger)',
       'Cloudflare KV (data cache)',
-      'GitHub Actions (CI/CD + hourly cron)',
+      'GitHub Actions (CI/CD)',
     ],
   },
 };

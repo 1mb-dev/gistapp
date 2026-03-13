@@ -364,10 +364,13 @@ describe('generateSpec', () => {
     expect(standardSpec).toContain('## Development Stages');
   });
 
-  it('Development Stages shows Stage 1 (Local) for all specs', () => {
-    const spec = generateSpec(minimalAnswers);
-    expect(spec).toContain('### Stage 1: Local (Mock Data)');
-    expect(spec).toContain('app works immediately on localhost');
+  it('Development Stages shows Stage 1 (Local) with tier-appropriate run command', () => {
+    const minimalSpec = generateSpec(minimalAnswers);
+    const standardSpec = generateSpec(standardAnswers);
+    expect(minimalSpec).toContain('### Stage 1: Local (Mock Data)');
+    expect(minimalSpec).toContain('Open `index.html` in browser');
+    expect(minimalSpec).not.toContain('npm run dev');
+    expect(standardSpec).toContain('npm run dev');
   });
 
   it('Development Stages shows Stage 2 (Integration) only for specs with data dependencies', () => {

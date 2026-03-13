@@ -42,7 +42,7 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   }
 
   sections.push(sectionImplementationOrder(answers, tier));
-  sections.push(sectionDevelopmentStages(answers));
+  sections.push(sectionDevelopmentStages(answers, tier));
   sections.push(sectionDeployment(answers, tier));
   sections.push(sectionPostDeployment(answers));
   sections.push(sectionSuggestedPrompt(answers, tier));
@@ -248,8 +248,12 @@ function sectionSummary(a: Partial<UserAnswers>, tier: ComplexityTier): string {
     parts.push(`> Uses ${sanitizeLine(a.apiKnownName)} for data.`);
   }
 
-  if (needsWorkerProxy(a)) {
-    parts.push('> API proxied through a server-side Worker to keep keys private.');
+  if (needsCron(a)) {
+    parts.push('> Data cached via Worker + KV with scheduled refresh.');
+  } else if (needsWorkerProxy(a)) {
+    parts.push(
+      '> If the API requires authentication, route through a server-side Worker to keep keys private. If the API is free and CORS-friendly, call directly from the browser.',
+    );
   }
 
   parts.push(`> ${tierInfo.framework}. Hosted on ${hostingName(a)}.`);
@@ -326,11 +330,11 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
 
     if (needsCron(a)) {
       lines.push(
-        '- Caching strategy: Cron job updates cache hourly. Frontend reads from cache (fast, no API key exposed).',
+        '- Caching strategy: Worker Cron Trigger refreshes KV cache on schedule. Frontend reads from KV (fast, no API key exposed).',
       );
     } else if (needsWorkerProxy(a)) {
       lines.push(
-        '- Caching strategy: Worker proxies API calls. Consider adding cache headers for repeat requests.',
+        '- Caching strategy: If using Worker proxy, add cache headers for repeat requests. If calling API directly, consider browser-side caching.',
       );
     }
   }
@@ -344,9 +348,12 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   if (tier === 'full') {
     lines.push('- Cache: Cloudflare KV (stores cached API responses)');
     lines.push('- Proxy: Cloudflare Worker (API proxy + cache writer)');
-    lines.push('- CI: GitHub Actions (deploy + hourly cron)');
+    lines.push('- Cron: Cloudflare Worker Cron Trigger (scheduled data refresh)');
+    lines.push('- CI: GitHub Actions (deploy)');
   } else if (tier === 'standard' && needsWorkerProxy(a)) {
-    lines.push('- Proxy: Cloudflare Worker (API proxy)');
+    lines.push(
+      '- Proxy: Cloudflare Worker (API proxy) — **only if API requires authentication**. If the API is free and CORS-friendly, skip the Worker and call directly from the browser.',
+    );
     lines.push('- CI: GitHub Actions (deploy)');
   } else {
     lines.push('- Proxy: None needed');
@@ -370,20 +377,10 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
       lines.push(`  - Data needed: ${sanitizeBlock(a.apiDescription)}`);
     }
 
-    const proxyNeeded = needsWorkerProxy(a);
+    lines.push('  - CORS from browser: Verify — test with a direct browser fetch first');
     lines.push(
-      `  - CORS from browser: ${proxyNeeded ? 'Verify — may need Worker proxy' : 'Verify availability'}`,
+      '  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support, rate limits. If API key is required, route through Worker proxy — never expose keys in frontend. If no auth needed and CORS is supported, call directly from the browser.**',
     );
-
-    if (proxyNeeded) {
-      lines.push(
-        '  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support. If API key required, route through Worker proxy — never expose in frontend.**',
-      );
-    } else {
-      lines.push(
-        '  - **Action: Research this API. Determine: free tier limits, auth requirements, CORS support, rate limits.**',
-      );
-    }
   }
 
   // Lightweight Libraries — tinyrouter for minimal tier (Astro has built-in routing),
@@ -902,27 +899,43 @@ function sectionCSP(a: Partial<UserAnswers>): string {
   lines.push('Add this `<meta>` tag to your `<head>`:');
   lines.push('');
 
-  const connectSrc = needsWorkerProxy(a)
-    ? "'self'"
-    : hasResolvedExternalData(a)
-      ? "'self' https:"
-      : hasResolvedUserContent(a) &&
-          (a.userInputType === 'simple-form' || a.userInputType === 'user-saves-data')
-        ? "'self' https:"
-        : "'self'";
+  let connectSrc: string;
+  if (needsCron(a)) {
+    // Full tier: Worker is confirmed, browser reads from Worker
+    connectSrc = "'self' https://*.workers.dev";
+  } else if (needsWorkerProxy(a)) {
+    // Standard tier: Worker is conditional — include workers.dev in case proxy is used
+    connectSrc = "'self' https://*.workers.dev";
+  } else if (hasResolvedExternalData(a)) {
+    connectSrc = "'self' https:";
+  } else if (
+    hasResolvedUserContent(a) &&
+    (a.userInputType === 'simple-form' || a.userInputType === 'user-saves-data')
+  ) {
+    connectSrc = "'self' https:";
+  } else {
+    connectSrc = "'self'";
+  }
 
   lines.push('```html');
   lines.push('<meta http-equiv="Content-Security-Policy" content="');
   lines.push(`  default-src 'self';`);
+  lines.push(`  script-src 'self';`);
   lines.push(`  style-src 'self' 'unsafe-inline';`);
   lines.push(`  img-src 'self' data:;`);
   lines.push(`  connect-src ${connectSrc};`);
   lines.push('">');
   lines.push('```');
   lines.push('');
-  lines.push(
-    "> Tighten `connect-src` after you know exact API domains (e.g., `connect-src 'self' https://api.example.com`).",
-  );
+  if (needsWorkerProxy(a) || needsCron(a)) {
+    lines.push(
+      "> Replace `https://*.workers.dev` with your actual Worker URL (e.g., `https://my-app-proxy.username.workers.dev`) before deploying.",
+    );
+  } else {
+    lines.push(
+      "> Tighten `connect-src` after you know exact API domains (e.g., `connect-src 'self' https://api.example.com`).",
+    );
+  }
 
   if (hasResolvedUserContent(a) && a.userInputType === 'simple-form') {
     lines.push(
@@ -1086,7 +1099,8 @@ function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string
   return lines.join('\n');
 }
 
-function sectionDevelopmentStages(a: Partial<UserAnswers>): string {
+function sectionDevelopmentStages(a: Partial<UserAnswers>, tier?: ComplexityTier): string {
+  const resolvedTier = tier ?? determineComplexity(a);
   const lines = ['## Development Stages', ''];
   lines.push(
     'Build locally first, integrate external services later. This lets you test the UI without dependencies.',
@@ -1097,7 +1111,13 @@ function sectionDevelopmentStages(a: Partial<UserAnswers>): string {
   lines.push('- Render UI with mock/fixture data (defined in Implementation Order)');
   lines.push('- Test all UX states locally: loading, error, success, empty');
   lines.push('- No external API calls');
-  lines.push('- **Run:** `npm run dev` → app works immediately on localhost');
+  if (resolvedTier === 'minimal') {
+    lines.push(
+      '- **Run:** Open `index.html` in browser (or `npx serve .` for a local server)',
+    );
+  } else {
+    lines.push('- **Run:** `npm run dev` → app works immediately on localhost');
+  }
   lines.push('');
 
   if (hasResolvedExternalData(a) || hasResolvedUserContent(a)) {
@@ -1146,13 +1166,19 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
     '   > **Checkpoint:** Show the user the UI with mock data. Get design approval before connecting real data.',
   );
 
-  if (needsWorkerProxy(a)) {
-    lines.push(`${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint`);
+  if (needsCron(a)) {
+    lines.push(
+      `${step++}. **Worker** — Create Cloudflare Worker with API proxy endpoint and \`scheduled\` handler for Cron Trigger`,
+    );
+  } else if (needsWorkerProxy(a)) {
+    lines.push(
+      `${step++}. **Worker (if needed)** — If API requires authentication, create Cloudflare Worker with proxy endpoint. If API is free and CORS-friendly, skip this step`,
+    );
   }
 
   if (hasResolvedExternalData(a)) {
     lines.push(
-      `${step++}. **Connect data** — Fetch from ${needsWorkerProxy(a) ? 'Worker' : 'API'}, render real data`,
+      `${step++}. **Connect data** — Fetch from ${needsCron(a) ? 'Worker/KV cache' : needsWorkerProxy(a) ? 'Worker (or API directly if no auth needed)' : 'API'}, render real data`,
     );
     lines.push('   > **Checkpoint:** Confirm data flows correctly end-to-end before proceeding.');
   }
@@ -1175,10 +1201,24 @@ function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTie
   }
 
   if (needsCron(a)) {
-    lines.push(`${step++}. **Cron** — GitHub Actions hourly trigger for cache refresh`);
+    lines.push(
+      `${step++}. **Cron** — Configure Cron Trigger in \`wrangler.toml\` (\`[triggers]\` → \`crons = ["0 * * * *"]\`). Implement \`scheduled\` event handler in Worker`,
+    );
   }
 
-  lines.push(`${step++}. **Error handling** — API failures, loading states, offline fallback`);
+  if (hasResolvedExternalData(a)) {
+    lines.push(
+      `${step++}. **Error handling** — API failures, loading states, network timeouts, offline fallback`,
+    );
+  } else if (hasResolvedUserContent(a) && a.userInputType === 'user-saves-data') {
+    lines.push(
+      `${step++}. **Error handling** — Form validation, storage failures, conflict resolution`,
+    );
+  } else if (hasResolvedUserContent(a) && a.userInputType === 'simple-form') {
+    lines.push(`${step++}. **Error handling** — Form validation, submission failures`);
+  } else {
+    lines.push(`${step++}. **Error handling** — Input validation, graceful degradation`);
+  }
   lines.push(
     `${step++}. **Web standards** — favicon, og:image, CSP, meta tags, robots.txt, Lighthouse audit`,
   );
