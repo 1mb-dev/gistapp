@@ -49,42 +49,52 @@ import SiteHeader from '../components/SiteHeader.astro';
     <!-- What's Next -->
     <section id="whats-next" class="whats-next-section" hidden>
       <div class="container">
-        <h2 class="section-title">What's next</h2>
-
-        <ol class="next-steps">
-          <li class="next-step">
-            <span class="step-number">1</span>
-            <div class="step-content">
-              <h3>Open your AI assistant</h3>
-              <p>Claude, Cursor, Codex, or your preferred AI coding tool.</p>
-            </div>
-          </li>
-          <li class="next-step">
-            <span class="step-number">2</span>
-            <div class="step-content">
-              <h3>Paste the spec</h3>
-              <p>Upload the markdown file or paste it directly into the chat.</p>
-            </div>
-          </li>
-          <li class="next-step">
-            <span class="step-number">3</span>
-            <div class="step-content">
-              <h3>Use the suggested prompt</h3>
-              <p>
-                Your spec includes a ready-made prompt at the bottom. Copy and paste it to get
-                started.
-              </p>
-            </div>
-          </li>
-        </ol>
+        <h2 class="section-title">Ready to build?</h2>
+        <p class="section-subtitle">
+          Copy this and paste it into Claude, Cursor, or your AI coding assistant.
+        </p>
 
         <div class="prompt-preview">
           <h3 class="prompt-label">Your suggested prompt:</h3>
           <div class="prompt-box" id="prompt-box"></div>
-          <button id="btn-copy-prompt" class="btn btn-ghost btn-sm" type="button">
-            Copy prompt
-          </button>
+          <div class="prompt-actions">
+            <button id="btn-copy-all" class="btn btn-primary" type="button">
+              Copy spec + prompt
+            </button>
+            <button id="btn-copy-prompt" class="btn btn-ghost btn-sm" type="button">
+              Copy prompt only
+            </button>
+          </div>
         </div>
+
+        <details class="next-steps-details">
+          <summary>Step-by-step instructions</summary>
+          <ol class="next-steps">
+            <li class="next-step">
+              <span class="step-number">1</span>
+              <div class="step-content">
+                <h3>Open your AI assistant</h3>
+                <p>Claude, Cursor, Codex, or your preferred AI coding tool.</p>
+              </div>
+            </li>
+            <li class="next-step">
+              <span class="step-number">2</span>
+              <div class="step-content">
+                <h3>Paste the spec + prompt</h3>
+                <p>Use the "Copy spec + prompt" button above, then paste into the chat.</p>
+              </div>
+            </li>
+            <li class="next-step">
+              <span class="step-number">3</span>
+              <div class="step-content">
+                <h3>Build iteratively</h3>
+                <p>
+                  The spec includes checkpoints — your AI will pause for approval at key milestones.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </details>
       </div>
     </section>
 
@@ -276,6 +286,32 @@ import SiteHeader from '../components/SiteHeader.astro';
           }
         });
 
+        // Copy spec + prompt (combined)
+        const btnCopyAll = document.getElementById('btn-copy-all') as HTMLButtonElement;
+        btnCopyAll.addEventListener('click', async () => {
+          track('spec_and_prompt_copied', { tier });
+          const prompt = promptBox.textContent ?? '';
+          const combined = `${spec}\n\n---\n\n${prompt}`;
+          try {
+            await navigator.clipboard.writeText(combined);
+            const original = btnCopyAll.textContent;
+            btnCopyAll.textContent = 'Copied!';
+            setTimeout(() => {
+              btnCopyAll.textContent = original;
+            }, 2000);
+          } catch {
+            const range = document.createRange();
+            range.selectNodeContents(specCode);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+            btnCopyAll.textContent = 'Selected \u2014 press Ctrl+C to copy';
+            setTimeout(() => {
+              btnCopyAll.textContent = 'Copy spec + prompt';
+            }, 3000);
+          }
+        });
+
         // Feedback
         const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
         const feedbackThanks = document.getElementById('feedback-thanks')!;
@@ -427,8 +463,6 @@ import SiteHeader from '../components/SiteHeader.astro';
     background: var(--color-bg-raised);
     border: none;
     margin: 0;
-    max-height: 600px;
-    overflow-y: auto;
   }
 
   .spec-body code {
@@ -475,7 +509,28 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .prompt-preview {
-    max-width: 560px;
+    max-width: 640px;
+  }
+
+  .prompt-actions {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .next-steps-details {
+    margin-top: var(--space-8);
+  }
+
+  .next-steps-details summary {
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .section-subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-6);
   }
 
   .prompt-label {

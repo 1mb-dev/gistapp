@@ -496,6 +496,7 @@ import SiteHeader from '../components/SiteHeader.astro';
 
     const tier = determineComplexity(answers);
     const tierInfo = tierDescriptions[tier];
+    const newBuilder = answers.persona === 'new-builder';
 
     stackDetails.replaceChildren();
 
@@ -508,7 +509,13 @@ import SiteHeader from '../components/SiteHeader.astro';
     // Framework
     const framework = document.createElement('p');
     framework.className = 'stack-framework';
-    framework.textContent = tierInfo.framework;
+    if (newBuilder && tier === 'minimal') {
+      framework.textContent = 'Simple web files';
+    } else if (newBuilder) {
+      framework.textContent = `Built with ${tierInfo.framework.split('(')[0].trim()}`;
+    } else {
+      framework.textContent = tierInfo.framework;
+    }
     stackDetails.appendChild(framework);
 
     // Description
@@ -517,35 +524,60 @@ import SiteHeader from '../components/SiteHeader.astro';
     desc.textContent = tierInfo.description;
     stackDetails.appendChild(desc);
 
-    // Components list
+    // Components list — plain language for new-builders
+    const componentTranslations: Record<string, string> = {
+      'Static HTML/CSS/JS': 'Simple web files — no special tools needed',
+      'Hosted on your chosen platform': 'Free web hosting to put your app online',
+      'Astro static site': 'A fast website builder (Astro)',
+      'Cloudflare Worker (API proxy)': 'A secure server for your data (Cloudflare Worker)',
+      'Cloudflare Worker (API proxy + cache writer + Cron Trigger)':
+        'A secure server that keeps data fresh automatically (Cloudflare Worker)',
+      'Cloudflare KV (data cache)': 'Fast data storage (Cloudflare KV)',
+      'GitHub Actions (CI/CD)': 'Automatic deployment when you update (GitHub Actions)',
+    };
+
     const list = document.createElement('ul');
     list.className = 'stack-components';
     for (const comp of tierInfo.components) {
       const li = document.createElement('li');
-      li.textContent = comp;
+      li.textContent = newBuilder ? (componentTranslations[comp] ?? comp) : comp;
       list.appendChild(li);
     }
     stackDetails.appendChild(list);
+
+    // Hosting note for new-builders
+    if (newBuilder) {
+      const hostNote = document.createElement('p');
+      hostNote.className = 'stack-note';
+      hostNote.textContent = 'Free web hosting included (Cloudflare Pages)';
+      stackDetails.appendChild(hostNote);
+    }
 
     // Extra recommendations
     if (needsWorkerProxy(answers)) {
       const proxy = document.createElement('p');
       proxy.className = 'stack-note';
-      proxy.textContent = 'Includes a Worker proxy for API key protection.';
+      proxy.textContent = newBuilder
+        ? 'Includes a secure server to protect any API keys your app needs.'
+        : 'Includes a Worker proxy for API key protection.';
       stackDetails.appendChild(proxy);
     }
 
     if (needsCron(answers)) {
       const cron = document.createElement('p');
       cron.className = 'stack-note';
-      cron.textContent = 'Includes scheduled updates (GitHub Actions cron).';
+      cron.textContent = newBuilder
+        ? 'Includes automatic data refresh so your app always shows fresh info.'
+        : 'Includes scheduled updates (cron-based cache refresh).';
       stackDetails.appendChild(cron);
     }
 
     if (shouldRecommendPWA(answers)) {
       const pwa = document.createElement('p');
       pwa.className = 'stack-note';
-      pwa.textContent = 'PWA recommended for daily mobile use (installable, works offline).';
+      pwa.textContent = newBuilder
+        ? 'Your app can be installed on phones like a real app — works offline too!'
+        : 'PWA recommended for daily mobile use (installable, works offline).';
       stackDetails.appendChild(pwa);
     }
   }
