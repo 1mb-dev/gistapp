@@ -34,7 +34,9 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   sections.push(sectionWebStandards(answers, tier));
   sections.push(sectionCSP(answers));
   sections.push(sectionAccessibility(answers));
-  sections.push(sectionLocale());
+  if (tier !== 'minimal' || hasResolvedExternalData(answers) || hasResolvedUserContent(answers)) {
+    sections.push(sectionLocale());
+  }
   sections.push(sectionBudgetMath(answers, tier));
 
   if (hasResearchNotes(answers)) {
@@ -42,7 +44,6 @@ export function generateSpec(answers: Partial<UserAnswers>): string {
   }
 
   sections.push(sectionImplementationOrder(answers, tier));
-  sections.push(sectionDevelopmentStages(answers, tier));
   sections.push(sectionDeployment(answers, tier));
   sections.push(sectionPostDeployment(answers));
   sections.push(sectionSuggestedPrompt(answers, tier));
@@ -495,6 +496,26 @@ function sectionDesign(a: Partial<UserAnswers>, tier: ComplexityTier): string {
     `- CSS: ${tier === 'minimal' ? 'Consider' : 'For simple pages, consider'} [oat](https://oat.ink/) — ultra-lightweight CSS+JS that styles semantic HTML without classes (\`<1.5 KB\`)`,
   ];
 
+  // Audience-driven design guidance
+  const audience = a.audience || (a.scale === 'public' ? 'general public' : '');
+  if (audience) {
+    const lower = audience.toLowerCase();
+    if (
+      lower.includes('public') ||
+      lower.includes('everyone') ||
+      lower.includes('general') ||
+      a.scale === 'public'
+    ) {
+      lines.push(
+        '- **Public-facing:** Emphasize clear onboarding, discoverable navigation, and forgiving interactions (undo over confirm dialogs)',
+      );
+    } else if (lower.includes('friend') || lower.includes('family') || lower.includes('team')) {
+      lines.push(
+        '- **Known audience:** Simpler onboarding — users have context. Focus on efficiency over discoverability',
+      );
+    }
+  }
+
   return lines.join('\n');
 }
 
@@ -636,7 +657,7 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
     // Mock data template for external APIs
     if (hasResolvedExternalData(a)) {
       lines.push('');
-      lines.push(generateMockDataTemplate(a.apiDescription, a.apiKnownName));
+      lines.push(generateMockDataTemplate(a.apiDescription, a.apiKnownName, tier));
     }
   }
 
@@ -779,11 +800,12 @@ function sectionWebStandards(a: Partial<UserAnswers>, tier: ComplexityTier): str
   lines.push('| `favicon.svg` | App icon, dark-mode aware SVG |');
   lines.push('| `og-image.png` | 1200x630: app title on branded gradient |');
   lines.push('| `robots.txt` | `User-agent: * Allow: /` |');
-  lines.push('| `.gitignore` | `.env`, `.env.*`, `*.local`, `node_modules/`, `dist/` |');
+  if (tier === 'minimal') {
+    lines.push('| `.gitignore` | `.env`, `.env.*`, `*.local` |');
+  } else {
+    lines.push('| `.gitignore` | `.env`, `.env.*`, `*.local`, `node_modules/`, `dist/` |');
+  }
   lines.push('| `404.html` | Custom 404 page with navigation back to home |');
-  lines.push(
-    '| `humans.txt` | Credits: team, tools, site info ([humanstxt.org](http://humanstxt.org/)) |',
-  );
 
   if (needsWorkerProxy(a) || needsCron(a)) {
     lines.push('| `.env.example` | Placeholder for API keys (never real values) |');
@@ -825,6 +847,22 @@ function sectionAccessibility(a: Partial<UserAnswers>): string {
     lines.push(
       '  - > *You selected "I\'m not sure" — we defaulted to supporting both phone and desktop.*',
     );
+  }
+
+  // Audience-driven accessibility emphasis
+  const audience = a.audience || (a.scale === 'public' ? 'general public' : '');
+  if (audience) {
+    const lower = audience.toLowerCase();
+    if (
+      lower.includes('public') ||
+      lower.includes('everyone') ||
+      lower.includes('general') ||
+      a.scale === 'public'
+    ) {
+      lines.push(
+        '- **Public audience:** Prioritize WCAG AA compliance — users may have diverse abilities, devices, and connection speeds',
+      );
+    }
   }
 
   return lines.join('\n');
@@ -1046,10 +1084,16 @@ function sectionBudgetMath(a: Partial<UserAnswers>, tier: ComplexityTier): strin
 
 /** Generate mock data template based on API description.
  *  Provides a shape guide for downstream AI to generate realistic sample values. */
-function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string): string {
+function generateMockDataTemplate(
+  apiDescription?: string,
+  apiKnownName?: string,
+  tier?: ComplexityTier,
+): string {
   if (!apiDescription) return '';
 
   const desc = apiDescription.toLowerCase();
+  const useTS = tier !== 'minimal';
+  const lang = useTS ? 'typescript' : 'javascript';
   const lines = ['### Mock Data (for local development)', ''];
   lines.push(
     'Use this shape while building UI. Downstream AI will generate realistic sample values.',
@@ -1064,16 +1108,21 @@ function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string
     apiKnownName?.toLowerCase().includes('weather')
   ) {
     lines.push('**Shape:**');
-    lines.push('```javascript');
+    lines.push(`\`\`\`${lang}`);
+    if (useTS) {
+      lines.push('interface Weather {');
+      lines.push('  location: string;');
+      lines.push('  current: { temp: number; condition: string; icon: string };');
+      lines.push('  forecast: { day: string; high: number; low: number; condition: string }[];');
+      lines.push('}');
+      lines.push('');
+    }
     lines.push('const mockWeather = {');
-    lines.push('  location: string,      // city name');
-    lines.push('  current: {');
-    lines.push('    temp: number,        // degrees (F or C)');
-    lines.push('    condition: string,   // weather description');
-    lines.push('    icon: string         // emoji or icon code');
-    lines.push('  },');
-    lines.push('  forecast: [            // array of future days');
-    lines.push('    { day: string, high: number, low: number, condition: string }');
+    lines.push('  location: "San Francisco",');
+    lines.push('  current: { temp: 72, condition: "Sunny", icon: "☀️" },');
+    lines.push('  forecast: [');
+    lines.push('    { day: "Mon", high: 75, low: 58, condition: "Partly Cloudy" },');
+    lines.push('    { day: "Tue", high: 68, low: 55, condition: "Rain" }');
     lines.push('  ]');
     lines.push('};');
     lines.push('```');
@@ -1086,29 +1135,44 @@ function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string
     apiKnownName?.toLowerCase().includes('stock')
   ) {
     lines.push('**Shape:**');
-    lines.push('```javascript');
+    lines.push(`\`\`\`${lang}`);
+    if (useTS) {
+      lines.push('interface Stock {');
+      lines.push('  ticker: string;');
+      lines.push('  price: number;');
+      lines.push('  change: number;');
+      lines.push('  changePercent: number;');
+      lines.push('  name: string;');
+      lines.push('}');
+      lines.push('');
+    }
     lines.push('const mockStocks = [');
-    lines.push('  {');
-    lines.push('    ticker: string,      // symbol (e.g., "AAPL")');
-    lines.push('    price: number,       // current price');
-    lines.push('    change: number,      // price change');
-    lines.push('    changePercent: number, // percentage change');
-    lines.push('    name: string         // company name');
-    lines.push('  }');
+    lines.push('  { ticker: "AAPL", price: 178.50, change: 2.30, changePercent: 1.3, name: "Apple Inc." },');
+    lines.push('  { ticker: "GOOGL", price: 141.20, change: -0.80, changePercent: -0.6, name: "Alphabet Inc." }');
     lines.push('];');
     lines.push('```');
   }
   // News/feed APIs
   else if (desc.includes('news') || desc.includes('feed') || desc.includes('article')) {
     lines.push('**Shape:**');
-    lines.push('```javascript');
+    lines.push(`\`\`\`${lang}`);
+    if (useTS) {
+      lines.push('interface Article {');
+      lines.push('  title: string;');
+      lines.push('  description: string;');
+      lines.push('  source: string;');
+      lines.push('  publishedAt: string;');
+      lines.push('  url: string;');
+      lines.push('}');
+      lines.push('');
+    }
     lines.push('const mockArticles = [');
     lines.push('  {');
-    lines.push('    title: string,       // headline');
-    lines.push('    description: string, // summary');
-    lines.push('    source: string,      // news source');
-    lines.push('    publishedAt: string, // ISO timestamp');
-    lines.push('    url: string          // article link');
+    lines.push('    title: "Breaking: Major Discovery",');
+    lines.push('    description: "Scientists announce breakthrough in renewable energy",');
+    lines.push('    source: "Science Daily",');
+    lines.push('    publishedAt: "2025-01-15T09:00:00Z",');
+    lines.push('    url: "https://example.com/article-1"');
     lines.push('  }');
     lines.push('];');
     lines.push('```');
@@ -1133,57 +1197,17 @@ function generateMockDataTemplate(apiDescription?: string, apiKnownName?: string
   return lines.join('\n');
 }
 
-function sectionDevelopmentStages(a: Partial<UserAnswers>, tier?: ComplexityTier): string {
-  const resolvedTier = tier ?? determineComplexity(a);
-  const lines = ['## Development Stages', ''];
-  lines.push(
-    'Build locally first, integrate external services later. This lets you test the UI without dependencies.',
-  );
-  lines.push('');
-
-  lines.push('### Stage 1: Local (Mock Data)');
-  lines.push('- Render UI with mock/fixture data (defined in Implementation Order)');
-  lines.push('- Test all UX states locally: loading, error, success, empty');
-  lines.push('- No external API calls');
-  if (resolvedTier === 'minimal') {
-    lines.push(
-      '- **Run:** Open `index.html` in browser (or `npx serve .` for a local server)',
-    );
-  } else {
-    lines.push('- **Run:** `npm run dev` → app works immediately on localhost');
-  }
-  lines.push('');
-
-  if (hasResolvedExternalData(a) || hasResolvedUserContent(a)) {
-    lines.push('### Stage 2: Integration (Real Data)');
-    lines.push('- Replace mock data with real API/database fetch');
-    lines.push('- Test with actual responses (may differ from mock assumptions)');
-    lines.push('- Add retry/error handling for real failure modes');
-    lines.push('');
-
-    lines.push('### Stage 3: Polish (Nice-to-Haves)');
-    lines.push('- Analytics tracking');
-    if (shouldRecommendPWA(a)) {
-      lines.push('- Service worker for offline caching');
-    }
-    lines.push('- Performance optimizations');
-    lines.push('- Advanced features');
-  }
-
-  return lines.join('\n');
-}
-
 function sectionImplementationOrder(a: Partial<UserAnswers>, tier: ComplexityTier): string {
   const lines = ['## Implementation Order'];
   let step = 1;
 
   if (tier === 'minimal') {
     lines.push(
-      `${step++}. **Scaffold** — Create \`index.html\`, \`style.css\`, \`app.js\`, \`favicon.svg\`, \`robots.txt\`, \`.gitignore\``,
+      `${step++}. **Scaffold** — Create \`index.html\`, \`style.css\`, \`app.js\`, \`favicon.svg\`, \`robots.txt\`, \`.gitignore\`. **Run:** Open \`index.html\` in browser (or \`npx serve .\`)`,
     );
   } else {
     lines.push(
-      `${step++}. **Scaffold** — \`npm create astro@latest\`, configure \`astro.config.mjs\`, \`.gitignore\``,
+      `${step++}. **Scaffold** — \`npm create astro@latest\`, configure \`astro.config.mjs\`, \`.gitignore\`. **Run:** \`npm run dev\``,
     );
   }
 

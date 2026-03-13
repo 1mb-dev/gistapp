@@ -355,66 +355,67 @@ describe('generateSpec', () => {
     expect(spec).not.toContain('ticker');
   });
 
-  // --- Localhost-first development improvements ---
+  // --- Implementation Order includes run command (replaces Development Stages) ---
 
-  it('all specs include Development Stages section', () => {
+  it('no spec contains Development Stages section', () => {
     const minimalSpec = generateSpec(minimalAnswers);
     const standardSpec = generateSpec(standardAnswers);
-    expect(minimalSpec).toContain('## Development Stages');
-    expect(standardSpec).toContain('## Development Stages');
+    expect(minimalSpec).not.toContain('## Development Stages');
+    expect(standardSpec).not.toContain('## Development Stages');
+    expect(minimalSpec).not.toContain('Stage 1');
+    expect(standardSpec).not.toContain('Stage 1');
   });
 
-  it('Development Stages shows Stage 1 (Local) with tier-appropriate run command', () => {
+  it('Implementation Order scaffold step includes tier-appropriate run command', () => {
     const minimalSpec = generateSpec(minimalAnswers);
     const standardSpec = generateSpec(standardAnswers);
-    expect(minimalSpec).toContain('### Stage 1: Local (Mock Data)');
     expect(minimalSpec).toContain('Open `index.html` in browser');
     expect(minimalSpec).not.toContain('npm run dev');
     expect(standardSpec).toContain('npm run dev');
   });
 
-  it('Development Stages shows Stage 2 (Integration) only for specs with data dependencies', () => {
-    const minimalSpec = generateSpec(minimalAnswers);
-    const externalDataSpec = generateSpec(standardAnswers);
-    expect(minimalSpec).not.toContain('### Stage 2: Integration');
-    expect(externalDataSpec).toContain('### Stage 2: Integration');
-  });
-
-  it('Development Stages shows Stage 3 (Polish) for specs with data dependencies', () => {
-    const spec = generateSpec(standardAnswers);
-    expect(spec).toContain('### Stage 3: Polish');
-  });
-
-  it('weather API includes mock data template with location fields', () => {
+  it('weather API includes mock data template with real values and TS interface', () => {
     const spec = generateSpec({
       ...standardAnswers,
       apiDescription: 'Current weather and 7-day forecast for any location',
     });
     expect(spec).toContain('### Mock Data (for local development)');
-    expect(spec).toContain('location: string');
-    expect(spec).toContain('temp: number');
-    expect(spec).toContain('condition: string');
+    expect(spec).toContain('interface Weather');
+    expect(spec).toContain('location: "San Francisco"');
+    expect(spec).toContain('temp: 72');
+    expect(spec).toContain('```typescript');
   });
 
-  it('stock API includes mock data template with ticker fields', () => {
+  it('stock API includes mock data template with real values', () => {
     const spec = generateSpec({
       ...standardAnswers,
       apiDescription: 'Real-time stock prices and market data',
     });
     expect(spec).toContain('### Mock Data (for local development)');
-    expect(spec).toContain('ticker: string');
-    expect(spec).toContain('price: number');
+    expect(spec).toContain('ticker: "AAPL"');
+    expect(spec).toContain('price: 178.50');
   });
 
-  it('news API includes mock data template with article fields', () => {
+  it('news API includes mock data template with real values', () => {
     const spec = generateSpec({
       ...standardAnswers,
       apiDescription: 'Latest news articles and headlines',
     });
     expect(spec).toContain('### Mock Data (for local development)');
-    expect(spec).toContain('title: string');
-    expect(spec).toContain('description: string');
-    expect(spec).toContain('publishedAt: string');
+    expect(spec).toContain('title: "Breaking: Major Discovery"');
+    expect(spec).toContain('publishedAt: "2025-01-15T09:00:00Z"');
+  });
+
+  it('minimal tier mock data uses plain JS without TS interfaces', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'public-api',
+      apiDescription: 'Weather forecast data',
+    });
+    expect(spec).toContain('```javascript');
+    expect(spec).not.toContain('```typescript');
+    expect(spec).not.toContain('interface Weather');
+    expect(spec).toContain('location: "San Francisco"');
   });
 
   it('external-data specs include Local Development Checklist', () => {

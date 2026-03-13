@@ -48,8 +48,8 @@ describe('Spec Examples for Documentation', () => {
     // Verify specs generate correctly
     expect(minimalSpec.length).toBeGreaterThan(0);
     expect(detailedSpec.length).toBeGreaterThan(0);
-    expect(minimalSpec).toContain('Development Stages');
-    expect(detailedSpec).toContain('Development Stages');
+    expect(minimalSpec).toContain('## Implementation Order');
+    expect(detailedSpec).toContain('## Implementation Order');
 
     console.log('\n✓ Specs generated and validated:');
     console.log(`  - ${minimalFilename} (${minimalSpec.split('\n').length} lines)`);
