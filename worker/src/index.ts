@@ -12,12 +12,17 @@ const ALLOWED_EVENTS = [
   'spec_downloaded',
   'spec_copied',
   'prompt_copied',
+  'spec_and_prompt_copied',
+  'spec_shared',
+  'shared_spec_viewed',
   'feedback',
 ] as const;
 
 type AllowedEvent = (typeof ALLOWED_EVENTS)[number];
 
 const MAX_PAYLOAD_CHARS = 512;
+const MAX_SHARE_CHARS = 4096;
+const TTL_90_DAYS = 7_776_000;
 
 // CORS only applies to browsers; use curl for local testing. For browser testing
 // with wrangler dev, requests from localhost won't match this origin — test with
@@ -47,7 +52,7 @@ async function increment(kv: KVNamespace, key: string): Promise<void> {
   }
   const newCount = (isNaN(current) ? 0 : current) + 1;
   await kv.put(key, String(newCount), {
-    expirationTtl: 7_776_000, // 90 days
+    expirationTtl: TTL_90_DAYS,
     metadata: { count: newCount },
   });
 }
@@ -212,6 +217,60 @@ async function handleStats(request: Request, env: Env): Promise<Response> {
   });
 }
 
+function generateShareId(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (const b of bytes) id += chars[b % chars.length];
+  return id;
+}
+
+async function handleShareCreate(request: Request, env: Env): Promise<Response> {
+  if (!env.INSIGHTS) {
+    return corsResponse('Service misconfigured', 500);
+  }
+
+  const raw = await request.text();
+  if (raw.length > MAX_SHARE_CHARS) {
+    return corsResponse('Payload too large', 413);
+  }
+
+  try {
+    JSON.parse(raw); // validate JSON
+  } catch {
+    return corsResponse('Invalid JSON', 400);
+  }
+
+  const id = generateShareId();
+  await env.INSIGHTS.put(`share:${id}`, raw, { expirationTtl: TTL_90_DAYS });
+
+  return new Response(JSON.stringify({ id }), {
+    status: 201,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
+}
+
+async function handleShareGet(id: string, env: Env): Promise<Response> {
+  if (!env.INSIGHTS) {
+    return corsResponse('Service misconfigured', 500);
+  }
+
+  if (!/^[A-Za-z0-9]{6}$/.test(id)) {
+    return corsResponse('Invalid share ID', 400);
+  }
+
+  const data = await env.INSIGHTS.get(`share:${id}`);
+  if (!data) {
+    return corsResponse('Not found or expired', 404);
+  }
+
+  return new Response(data, {
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
@@ -220,7 +279,9 @@ export default {
       // CORS preflight — scoped to API endpoints only
       if (
         request.method === 'OPTIONS' &&
-        (url.pathname === '/api/event' || url.pathname === '/api/stats')
+        (url.pathname === '/api/event' ||
+          url.pathname === '/api/stats' ||
+          url.pathname.startsWith('/api/share'))
       ) {
         return corsResponse(null, 204);
       }
@@ -243,6 +304,15 @@ export default {
 
       if (url.pathname === '/api/stats' && request.method === 'GET') {
         return handleStats(request, env);
+      }
+
+      if (url.pathname === '/api/share' && request.method === 'POST') {
+        return handleShareCreate(request, env);
+      }
+
+      const shareMatch = url.pathname.match(/^\/api\/share\/([A-Za-z0-9]+)$/);
+      if (shareMatch && request.method === 'GET') {
+        return handleShareGet(shareMatch[1], env);
       }
 
       return corsResponse('Not found', 404);

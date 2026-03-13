@@ -527,3 +527,82 @@ describe('Error sanitization', () => {
     consoleSpy.mockRestore();
   });
 });
+
+// --- Share link tests ---
+
+function postShare(body: string, env = makeEnv()): Promise<Response> {
+  const request = new Request('https://worker.test/api/share', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+  return worker.fetch(request, env);
+}
+
+function getShare(id: string, env = makeEnv()): Promise<Response> {
+  const request = new Request(`https://worker.test/api/share/${id}`, { method: 'GET' });
+  return worker.fetch(request, env);
+}
+
+describe('POST /api/share', () => {
+  it('stores answers and returns a 6-char ID', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const answers = JSON.stringify({ persona: 'developer', title: 'Test App' });
+    const res = await postShare(answers, env);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string };
+    expect(body.id).toMatch(/^[A-Za-z0-9]{6}$/);
+  });
+
+  it('rejects invalid JSON', async () => {
+    const res = await postShare('not json');
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects payload over 4KB', async () => {
+    const res = await postShare('x'.repeat(4097));
+    expect(res.status).toBe(413);
+  });
+
+  it('stores with 90-day TTL', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postShare(JSON.stringify({ title: 'Test' }), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const shareCall = putCalls.find((c: string[]) => c[0].startsWith('share:'));
+    expect(shareCall?.[2]).toMatchObject({ expirationTtl: 7_776_000 });
+  });
+});
+
+describe('GET /api/share/:id', () => {
+  it('retrieves stored answers', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const answers = JSON.stringify({ persona: 'developer', title: 'Test App' });
+    const createRes = await postShare(answers, env);
+    const { id } = (await createRes.json()) as { id: string };
+
+    const getRes = await getShare(id, env);
+    expect(getRes.status).toBe(200);
+    const body = await getRes.json();
+    expect(body).toEqual({ persona: 'developer', title: 'Test App' });
+  });
+
+  it('returns 404 for unknown ID', async () => {
+    const res = await getShare('abcdef');
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects invalid ID format', async () => {
+    const res = await getShare('../../etc');
+    expect(res.status).toBe(404); // route regex rejects non-alphanumeric
+  });
+
+  it('CORS preflight works for share endpoints', async () => {
+    const request = new Request('https://worker.test/api/share', { method: 'OPTIONS' });
+    const res = await worker.fetch(request, makeEnv());
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://gist.1mb.dev');
+  });
+});

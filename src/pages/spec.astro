@@ -24,10 +24,31 @@ import SiteHeader from '../components/SiteHeader.astro';
           <p class="spec-meta" id="spec-meta-line"></p>
         </div>
 
-        <div class="spec-actions-top">
-          <button id="btn-copy" class="btn btn-primary" type="button"> Copy to clipboard </button>
-          <button id="btn-download" class="btn btn-ghost" type="button"> Download .md </button>
-          <button id="btn-share" class="btn btn-ghost" type="button"> Share link </button>
+        <div class="spec-actions-top" role="group" aria-label="Spec actions">
+          <button
+            id="btn-copy"
+            class="btn btn-primary"
+            type="button"
+            aria-label="Copy spec to clipboard"
+          >
+            Copy to clipboard
+          </button>
+          <button
+            id="btn-download"
+            class="btn btn-ghost"
+            type="button"
+            aria-label="Download spec as markdown file"
+          >
+            Download .md
+          </button>
+          <button
+            id="btn-share"
+            class="btn btn-ghost"
+            type="button"
+            aria-label="Create shareable link"
+          >
+            Share link
+          </button>
         </div>
 
         <div class="spec-preview-window">
@@ -37,7 +58,9 @@ import SiteHeader from '../components/SiteHeader.astro';
             <span class="spec-dot"></span>
             <span class="spec-filename" id="spec-filename"></span>
           </div>
-          <pre class="spec-body" id="spec-body"><code id="spec-code" /></pre>
+          <div class="spec-scroll-wrapper" role="region" aria-label="Spec preview" tabindex="0">
+            <pre class="spec-body" id="spec-body"><code id="spec-code" /></pre>
+          </div>
         </div>
 
         <div class="spec-actions-bottom">
@@ -138,47 +161,27 @@ import SiteHeader from '../components/SiteHeader.astro';
   import { determineComplexity, tierDescriptions } from '../lib/complexity';
   import { track } from '../lib/insights';
 
-  // --- Compression helpers for shareable URLs ---
-  async function compressAnswers(answers: Partial<UserAnswers>): Promise<string> {
-    const json = JSON.stringify(answers);
-    const encoder = new TextEncoder();
-    const stream = new Blob([encoder.encode(json)])
-      .stream()
-      .pipeThrough(new CompressionStream('deflate'));
-    const compressed = await new Response(stream).arrayBuffer();
-    // base64url encoding (URL-safe, no padding)
-    const bytes = new Uint8Array(compressed);
-    let binary = '';
-    for (const b of bytes) binary += String.fromCharCode(b);
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
+  import { INSIGHTS_URL } from '../lib/config';
 
-  async function decompressAnswers(encoded: string): Promise<Partial<UserAnswers> | null> {
-    try {
-      // Restore base64 from base64url
-      let b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-      while (b64.length % 4) b64 += '=';
-      const binary = atob(b64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
-      const text = await new Response(stream).text();
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
-  }
-
-  // --- Load answers: URL fragment first, then sessionStorage ---
+  // --- Load answers: shared link (KV-backed) or sessionStorage ---
   let raw: string | null = null;
   let isSharedSpec = false;
   const fragment = window.location.hash.slice(1);
 
   if (fragment) {
-    const shared = await decompressAnswers(fragment);
-    if (shared) {
-      raw = JSON.stringify(shared);
-      isSharedSpec = true;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${INSIGHTS_URL}/api/share/${encodeURIComponent(fragment)}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        raw = await res.text();
+        isSharedSpec = true;
+      }
+    } catch {
+      /* network error or timeout — fall through to sessionStorage */
     }
   }
 
@@ -210,7 +213,11 @@ import SiteHeader from '../components/SiteHeader.astro';
       if (subtitle)
         subtitle.textContent =
           'Your answers couldn\u2019t be loaded. Please try creating your spec again.';
-      sessionStorage.removeItem('gist-answers');
+      try {
+        sessionStorage.removeItem('gist-answers');
+      } catch {
+        /* storage inaccessible */
+      }
     }
 
     if (answers) {
@@ -244,6 +251,20 @@ import SiteHeader from '../components/SiteHeader.astro';
         // Spec body
         const specCode = document.getElementById('spec-code')!;
         specCode.textContent = spec;
+
+        // Scroll fade: hide bottom gradient when scrolled to end
+        const scrollWrapper = document.querySelector('.spec-scroll-wrapper') as HTMLElement;
+        const previewWindow = document.querySelector('.spec-preview-window') as HTMLElement;
+        if (scrollWrapper && previewWindow) {
+          const checkScroll = () => {
+            const atBottom =
+              scrollWrapper.scrollHeight - scrollWrapper.scrollTop - scrollWrapper.clientHeight < 4;
+            previewWindow.classList.toggle('scrolled-bottom', atBottom);
+          };
+          scrollWrapper.addEventListener('scroll', checkScroll, { passive: true });
+          // Check once content is rendered (no overflow = no fade)
+          requestAnimationFrame(checkScroll);
+        }
 
         // Extract suggested prompt for the prompt preview
         const promptBox = document.getElementById('prompt-box')!;
@@ -374,8 +395,14 @@ import SiteHeader from '../components/SiteHeader.astro';
         btnShare.addEventListener('click', async () => {
           track('spec_shared', { tier });
           try {
-            const encoded = await compressAnswers(answers as Partial<UserAnswers>);
-            const shareUrl = `${window.location.origin}/spec#${encoded}`;
+            const res = await fetch(`${INSIGHTS_URL}/api/share`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(answers),
+            });
+            if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+            const { id } = await res.json();
+            const shareUrl = `${window.location.origin}/spec#${id}`;
             await navigator.clipboard.writeText(shareUrl);
             const original = btnShare.textContent;
             btnShare.textContent = 'Link copied!';
@@ -488,6 +515,7 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .spec-preview-window {
+    position: relative;
     background: var(--color-bg-raised);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-xl);
@@ -529,6 +557,38 @@ import SiteHeader from '../components/SiteHeader.astro';
     font-size: 0.7rem;
     color: var(--color-text-muted);
     letter-spacing: 0.01em;
+  }
+
+  .spec-scroll-wrapper {
+    max-height: 60vh;
+    overflow-y: auto;
+    position: relative;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .spec-scroll-wrapper:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+
+  /* Fade hint at bottom when content overflows */
+  .spec-preview-window::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(transparent, var(--color-bg-raised));
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity var(--duration-normal) var(--easing);
+  }
+
+  .spec-preview-window.scrolled-bottom::after {
+    opacity: 0;
   }
 
   .spec-body {
