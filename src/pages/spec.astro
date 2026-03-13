@@ -365,7 +365,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         // Hidden element for clipboard fallback (so both spec + prompt are selectable)
         const combinedEl = document.createElement('pre');
         combinedEl.textContent = combined;
-        combinedEl.style.cssText = 'position:absolute;left:-9999px;white-space:pre-wrap;';
+        combinedEl.style.cssText =
+          'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:pre-wrap;';
         specSection.appendChild(combinedEl);
 
         btnCopyAll.addEventListener('click', async () => {
@@ -694,7 +695,7 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   /* Feedback */
   .feedback-section {
-    padding: var(--space-12) 0;
+    padding: var(--space-10) 0 var(--space-8);
     text-align: center;
     border-top: 1px solid var(--color-border-subtle);
   }
@@ -767,7 +768,7 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   /* Start over */
   .start-over-section {
-    padding: var(--space-10) 0 var(--space-20);
+    padding: var(--space-6) 0 var(--space-10);
     text-align: center;
   }
 
