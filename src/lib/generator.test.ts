@@ -563,6 +563,28 @@ describe('generateSpec', () => {
     });
     expect(spec).toContain('Public-facing');
   });
+
+  it('simple-form: error handling mentions form validation and submission failures', () => {
+    const spec = generateSpec(userContentSimpleAnswers);
+    expect(spec).toContain('Form validation, submission failures');
+    expect(spec).not.toContain('storage failures');
+  });
+
+  it('user-saves-data: error handling mentions storage failures', () => {
+    const spec = generateSpec(userContentSavesDataAnswers);
+    expect(spec).toContain('Form validation, storage failures');
+  });
+
+  it('standard tier with Worker: has Worker API Design section', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('### Worker API Design');
+    expect(spec).toContain('/api/data');
+  });
+
+  it('standard tier data flow: conditional proxy language (not committed)', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('if API requires auth');
+  });
 });
 
 describe('generateFilename', () => {

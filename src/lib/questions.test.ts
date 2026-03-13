@@ -77,10 +77,21 @@ describe('resolveQuestion', () => {
     expect(apiOption?.label).toBe('From the internet');
   });
 
-  it('leaves questions without overlays unchanged for new-builder', () => {
+  it('applies field overlay for product-brief headlineValue for new-builder', () => {
     const briefQ = questions.find((q) => q.id === 'product-brief')!;
     const resolved = resolveQuestion(briefQ, 'new-builder');
+    // Title is unchanged — overlay only affects fields
     expect(resolved.title).toBe(briefQ.title);
+    // headlineValue field is optional for new-builders
+    const hvField = resolved.fields?.find((f) => f.key === 'headlineValue');
+    expect(hvField?.required).toBe(false);
+    expect(hvField?.helperText).toBe(
+      "Skip this if you're not sure yet — your AI assistant can figure it out",
+    );
+    expect(hvField?.label).toContain('(optional)');
+    // Other fields unchanged
+    const titleField = resolved.fields?.find((f) => f.key === 'title');
+    expect(titleField?.required).toBe(true);
   });
 
   it('applies overlay for Q6a (user-input) for new-builder persona', () => {

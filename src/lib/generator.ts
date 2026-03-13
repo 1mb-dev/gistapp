@@ -375,10 +375,13 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push('|-------|--------|---------|');
     lines.push('| `/api/data` | GET | Proxy upstream API requests (add auth, return JSON) |');
     lines.push('| `/health` | GET | Health check (returns 200) |');
-    if (needsCron(a)) {
-      lines.push('| `scheduled` | Cron | Refresh KV cache on schedule |');
-    }
     lines.push('');
+    if (needsCron(a)) {
+      lines.push(
+        '**Cron:** Implement the `scheduled` export (not an HTTP route) — invoked by Cloudflare Cron Trigger or called via GitHub Actions.',
+      );
+      lines.push('');
+    }
     lines.push('**Request:** Browser fetches from Worker origin. No auth headers from browser.');
     lines.push(
       '**Response:** JSON passthrough from upstream API. Worker adds CORS headers for your Pages domain.',
@@ -610,20 +613,23 @@ function sectionWiringGuide(a: Partial<UserAnswers>, tier: ComplexityTier): stri
     lines.push('');
     lines.push('### Data Flow');
 
-    if (needsWorkerProxy(a)) {
+    if (needsCron(a)) {
       lines.push('1. Browser requests data from Worker endpoint');
       lines.push('2. Worker reads API key from Cloudflare secret');
       lines.push('3. Worker fetches external API');
-      if (needsCron(a)) {
-        lines.push('4. (Cron path) GitHub Actions triggers Worker to refresh cache hourly');
-        lines.push('5. Worker writes fresh data to KV');
-        lines.push('6. (Read path) Worker serves cached data from KV');
-      } else {
-        lines.push('4. Worker returns response to browser');
-      }
+      lines.push('4. (Cron path) Scheduled trigger refreshes KV cache on a timer');
+      lines.push('5. Worker writes fresh data to KV');
+      lines.push('6. (Read path) Worker serves cached data from KV');
+      lines.push('7. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)');
+    } else if (needsWorkerProxy(a)) {
       lines.push(
-        `${needsCron(a) ? '7' : '5'}. Browser renders data using safe DOM methods (\`textContent\`, not \`innerHTML\`)`,
+        '1. Browser requests data — from Worker proxy (if API requires auth) or directly from API (if CORS-friendly)',
       );
+      lines.push(
+        '2. If using Worker: Worker reads API key from Cloudflare secret, fetches API, returns response',
+      );
+      lines.push('3. If direct: Browser fetches API directly (no auth headers needed)');
+      lines.push('4. Browser renders data using safe DOM methods (`textContent`, not `innerHTML`)');
     } else if (hasResolvedUserContent(a)) {
       if (a.userInputType === 'simple-form') {
         lines.push('1. User fills out form in the browser');
