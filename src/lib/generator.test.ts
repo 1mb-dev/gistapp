@@ -443,6 +443,126 @@ describe('generateSpec', () => {
     });
     expect(spec).not.toContain('Before integrating external services');
   });
+
+  // --- Phase 6: v2.0.0 regression tests ---
+
+  // Spec Correctness (Phase 1)
+  it('minimal + public-api: no Worker proxy in architecture', () => {
+    const spec = generateSpec({
+      ...minimalAnswers,
+      dataSource: 'public-api',
+      apiDescription: 'Test API',
+    });
+    expect(spec).toContain('Proxy: None needed');
+  });
+
+  it('standard + public-api: proxy is conditional', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('only if API requires authentication');
+  });
+
+  it('full + realtime: Worker proxy is committed (not conditional)', () => {
+    const spec = generateSpec(fullAnswers);
+    expect(spec).toContain('Cloudflare Worker (API proxy + cache writer)');
+    expect(spec).not.toContain('only if API requires authentication');
+  });
+
+  it('minimal + no-external: error handling says "Input validation"', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('Input validation');
+    expect(spec).not.toContain('API failures');
+  });
+
+  it('standard + public-api: error handling mentions API failures', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('API failures');
+  });
+
+  it('worker proxy spec: CSP connect-src includes workers.dev', () => {
+    const spec = generateSpec(fullAnswers);
+    expect(spec).toContain("connect-src 'self' https://*.workers.dev");
+  });
+
+  it('no-external spec: CSP connect-src is self only', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain("connect-src 'self'");
+    expect(spec).not.toContain('workers.dev');
+  });
+
+  // Spec Completeness (Phase 2)
+  it('standard tier: Required Files includes index.astro', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('src/pages/index.astro');
+  });
+
+  it('full tier: Required Files includes worker/src/index.ts', () => {
+    const spec = generateSpec(fullAnswers);
+    expect(spec).toContain('worker/src/index.ts');
+  });
+
+  it('full tier: has Worker API Design section', () => {
+    const spec = generateSpec(fullAnswers);
+    expect(spec).toContain('### Worker API Design');
+    expect(spec).toContain('/api/data');
+    expect(spec).toContain('/health');
+  });
+
+  it('all tiers: CSP has explicit script-src', () => {
+    const minSpec = generateSpec(minimalAnswers);
+    const stdSpec = generateSpec(standardAnswers);
+    const fullSpec = generateSpec(fullAnswers);
+    expect(minSpec).toContain("script-src 'self'");
+    expect(stdSpec).toContain("script-src 'self'");
+    expect(fullSpec).toContain("script-src 'self'");
+  });
+
+  // Spec Cleanup (Phase 3)
+  it('no spec mentions humans.txt', () => {
+    const minSpec = generateSpec(minimalAnswers);
+    const stdSpec = generateSpec(standardAnswers);
+    expect(minSpec).not.toContain('humans.txt');
+    expect(stdSpec).not.toContain('humans.txt');
+  });
+
+  it('minimal + no-external: no Locale section', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).not.toContain('Locale & Internationalization');
+  });
+
+  it('standard + public-api: has Locale section', () => {
+    const spec = generateSpec(standardAnswers);
+    expect(spec).toContain('Locale & Internationalization');
+  });
+
+  it('minimal tier .gitignore: no node_modules, no dist', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toContain('.gitignore');
+    expect(spec).not.toContain('node_modules');
+    expect(spec).not.toContain('dist/');
+  });
+
+  it('public app with audience: spec mentions accessibility emphasis', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      audience: 'general public',
+    });
+    expect(spec).toContain('Public audience');
+    expect(spec).toContain('WCAG AA compliance');
+  });
+
+  it('cron references are mechanism-agnostic', () => {
+    const spec = generateSpec(fullAnswers);
+    expect(spec).toContain('Cloudflare Cron Trigger or GitHub Actions cron');
+    expect(spec).not.toContain('GitHub Actions (CI/CD + hourly cron)');
+  });
+
+  it('public scale with audience: design mentions public-facing guidance', () => {
+    const spec = generateSpec({
+      ...standardAnswers,
+      audience: 'everyone',
+    });
+    expect(spec).toContain('Public-facing');
+  });
 });
 
 describe('generateFilename', () => {
