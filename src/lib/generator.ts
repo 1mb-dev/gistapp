@@ -349,7 +349,9 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
   if (tier === 'full') {
     lines.push('- Cache: Cloudflare KV (stores cached API responses)');
     lines.push('- Proxy: Cloudflare Worker (API proxy + cache writer)');
-    lines.push('- Cron: Scheduled data refresh (Cloudflare Cron Trigger or GitHub Actions cron — choose based on your stack)');
+    lines.push(
+      '- Cron: Scheduled data refresh (Cloudflare Cron Trigger or GitHub Actions cron — choose based on your stack)',
+    );
     lines.push('- CI: GitHub Actions (deploy)');
   } else if (tier === 'standard' && needsWorkerProxy(a)) {
     lines.push(
@@ -384,9 +386,7 @@ function sectionArchitecture(a: Partial<UserAnswers>, tier: ComplexityTier): str
     lines.push(
       '**Errors:** Return `{ error: string, status: number }`. Never expose upstream API keys in error messages.',
     );
-    lines.push(
-      '**CORS:** Set `Access-Control-Allow-Origin` to your Pages deployment URL.',
-    );
+    lines.push('**CORS:** Set `Access-Control-Allow-Origin` to your Pages deployment URL.');
   }
 
   // APIs to Integrate (conditional)
@@ -1001,7 +1001,7 @@ function sectionCSP(a: Partial<UserAnswers>): string {
   lines.push('');
   if (needsWorkerProxy(a) || needsCron(a)) {
     lines.push(
-      "> Replace `https://*.workers.dev` with your actual Worker URL (e.g., `https://my-app-proxy.username.workers.dev`) before deploying.",
+      '> Replace `https://*.workers.dev` with your actual Worker URL (e.g., `https://my-app-proxy.username.workers.dev`) before deploying.',
     );
   } else {
     lines.push(
@@ -1147,8 +1147,12 @@ function generateMockDataTemplate(
       lines.push('');
     }
     lines.push('const mockStocks = [');
-    lines.push('  { ticker: "AAPL", price: 178.50, change: 2.30, changePercent: 1.3, name: "Apple Inc." },');
-    lines.push('  { ticker: "GOOGL", price: 141.20, change: -0.80, changePercent: -0.6, name: "Alphabet Inc." }');
+    lines.push(
+      '  { ticker: "AAPL", price: 178.50, change: 2.30, changePercent: 1.3, name: "Apple Inc." },',
+    );
+    lines.push(
+      '  { ticker: "GOOGL", price: 141.20, change: -0.80, changePercent: -0.6, name: "Alphabet Inc." }',
+    );
     lines.push('];');
     lines.push('```');
   }

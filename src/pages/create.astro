@@ -40,6 +40,7 @@ import SiteHeader from '../components/SiteHeader.astro';
           <div class="progress-fill" id="progress-fill"></div>
         </div>
         <div class="question-counter" id="question-counter" aria-live="polite"></div>
+        <p class="save-signal" id="save-signal" hidden>Your progress is saved automatically</p>
 
         <div id="question-container" class="question-container" role="form" tabindex="-1">
           <!-- Questions rendered dynamically -->
@@ -173,6 +174,7 @@ import SiteHeader from '../components/SiteHeader.astro';
   const questionContainer = document.getElementById('question-container')!;
   const progressFill = document.getElementById('progress-fill')!;
   const questionCounter = document.getElementById('question-counter')!;
+  const saveSignal = document.getElementById('save-signal')!;
   const btnBack = document.getElementById('btn-back') as HTMLButtonElement;
   const btnSkip = document.getElementById('btn-skip') as HTMLButtonElement;
   const btnNext = document.getElementById('btn-next') as HTMLButtonElement;
@@ -236,12 +238,15 @@ import SiteHeader from '../components/SiteHeader.astro';
       }
     }
 
-    // Update progress
+    // Update progress — use max of previous width to prevent visual decrease when new questions appear
     const progress = Math.round((currentIndex / visibleQuestions.length) * 100);
-    progressFill.style.width = `${progress}%`;
+    const prevWidth = parseInt(progressFill.style.width || '0', 10);
+    const displayProgress = Math.max(progress, prevWidth);
+    progressFill.style.width = `${displayProgress}%`;
     const progressBar = progressFill.parentElement!;
-    progressBar.setAttribute('aria-valuenow', String(progress));
-    questionCounter.textContent = `Question ${currentIndex + 1} of ${visibleQuestions.length}`;
+    progressBar.setAttribute('aria-valuenow', String(displayProgress));
+    questionCounter.textContent = `Question ${currentIndex + 1}`;
+    saveSignal.hidden = currentIndex < 1;
 
     // Clear existing content safely
     questionContainer.replaceChildren();
@@ -267,8 +272,8 @@ import SiteHeader from '../components/SiteHeader.astro';
       renderFields(q);
     }
 
-    // Navigation state
-    btnBack.hidden = currentIndex === 0;
+    // Navigation state — Back always visible (Q1 goes to persona selection)
+    btnBack.hidden = false;
     btnSkip.hidden = !q.optional;
     btnNext.disabled = !isQuestionAnswered(q);
 
@@ -411,6 +416,14 @@ import SiteHeader from '../components/SiteHeader.astro';
 
       wrapper.appendChild(label);
       wrapper.appendChild(input);
+
+      if (field.helperText) {
+        const helper = document.createElement('p');
+        helper.className = 'field-helper';
+        helper.textContent = field.helperText;
+        wrapper.appendChild(helper);
+      }
+
       fieldset.appendChild(wrapper);
     }
 
@@ -460,6 +473,11 @@ import SiteHeader from '../components/SiteHeader.astro';
     if (currentIndex > 0) {
       currentIndex--;
       renderQuestion();
+    } else {
+      // Q1 Back → return to persona selection
+      questionSection.hidden = true;
+      personaSection.hidden = false;
+      personaCards.forEach((c) => c.setAttribute('aria-pressed', 'false'));
     }
   });
 
@@ -657,7 +675,7 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   .progress-bar {
-    height: 4px;
+    height: 6px;
     background: var(--color-bg-sunken);
     border-radius: var(--radius-full);
     overflow: hidden;
@@ -678,6 +696,12 @@ import SiteHeader from '../components/SiteHeader.astro';
     color: var(--color-text-muted);
     margin: var(--space-2) 0 0;
     font-style: italic;
+  }
+
+  .save-signal {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0 0;
   }
 
   .question-counter {
@@ -847,6 +871,12 @@ import SiteHeader from '../components/SiteHeader.astro';
 
   textarea.field-input {
     resize: vertical;
+  }
+
+  .field-helper {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0 0;
   }
 
   /* Navigation */

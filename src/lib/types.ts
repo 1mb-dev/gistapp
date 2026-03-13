@@ -126,6 +126,7 @@ export interface QuestionField {
   placeholder: string;
   required?: boolean;
   multiline?: boolean;
+  helperText?: string;
 }
 
 /** Per-question text overrides for a persona */
@@ -133,6 +134,10 @@ export interface PersonaOverlay {
   title?: string;
   subtitle?: string;
   options?: Record<string, { label?: string; detail?: string }>;
+  fields?: Record<
+    string,
+    { label?: string; placeholder?: string; required?: boolean; helperText?: string }
+  >;
   autoDefault?: string;
 }
 

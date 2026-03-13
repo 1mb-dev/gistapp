@@ -355,6 +355,16 @@ export function getVisibleQuestions(answers: Partial<UserAnswers>): QuestionDef[
 
 /** Persona overlay map: jargon-free text for new-builder persona */
 const newBuilderOverlays: Record<string, PersonaOverlay> = {
+  'product-brief': {
+    fields: {
+      headlineValue: {
+        label: "What's the first thing users see? (optional)",
+        placeholder: 'The main screen of your app',
+        required: false,
+        helperText: "Skip this if you're not sure yet — your AI assistant can figure it out",
+      },
+    },
+  },
   'data-source': {
     title: 'Where does your app get its information?',
     subtitle: 'Most apps show information from somewhere. Pick what fits.',
@@ -520,6 +530,20 @@ export function resolveQuestion(q: QuestionDef, persona?: Persona): QuestionDef 
         ...opt,
         label: ov.label ?? opt.label,
         detail: ov.detail ?? opt.detail,
+      };
+    });
+  }
+
+  if (overlay.fields && q.fields) {
+    resolved.fields = q.fields.map((field) => {
+      const ov = overlay.fields![field.key as string];
+      if (!ov) return field;
+      return {
+        ...field,
+        label: ov.label ?? field.label,
+        placeholder: ov.placeholder ?? field.placeholder,
+        required: ov.required ?? field.required,
+        helperText: ov.helperText ?? field.helperText,
       };
     });
   }
