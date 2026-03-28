@@ -197,7 +197,7 @@ export const questions: QuestionDef[] = [
       },
       {
         key: 'apiKnownName',
-        label: 'Know a specific API? (optional)',
+        label: 'Know a specific API?',
         placeholder: 'Open-Meteo, OpenWeather, etc.',
       },
     ],
@@ -361,7 +361,7 @@ const newBuilderOverlays: Record<string, PersonaOverlay> = {
   'product-brief': {
     fields: {
       headlineValue: {
-        label: "What's the first thing users see? (optional)",
+        label: "What's the first thing users see?",
         placeholder: 'The main screen of your app',
         required: false,
         helperText: "Skip this if you're not sure yet — your AI assistant can figure it out",

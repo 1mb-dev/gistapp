@@ -94,7 +94,7 @@ describe('resolveQuestion', () => {
     expect(hvField?.helperText).toBe(
       "Skip this if you're not sure yet — your AI assistant can figure it out",
     );
-    expect(hvField?.label).toContain('(optional)');
+    expect(hvField?.label).not.toContain('(optional)'); // UI renders optional tag, not the data
     // Other fields unchanged
     const titleField = resolved.fields?.find((f) => f.key === 'title');
     expect(titleField?.required).toBe(true);
