@@ -1,0 +1,25 @@
+# Gist
+
+> Turn your app idea into a build-ready spec
+
+Gist is a free tool that generates detailed, structured specifications for zero-stack web applications. Users describe their app idea, answer structured questions about functionality, data sources, and design preferences, then receive a markdown spec ready to hand to an AI coding assistant like Claude, Cursor, or Copilot.
+
+## How it works
+
+1. Choose your experience level (new builder or developer)
+2. Answer questions about your app (what it does, data sources, hosting, design)
+3. Download a markdown spec with architecture decisions, file structure, UX states, and implementation order
+
+## Key details
+
+- No signup required
+- No cost
+- Static site — all spec generation happens client-side
+- Specs target free-tier hosting (Cloudflare Pages, Vercel, Netlify)
+- Output is a single markdown file optimized for AI coding assistants
+
+## Links
+
+- Homepage: https://gist.1mb.dev
+- Create a spec: https://gist.1mb.dev/create
+- Source code: https://github.com/1mb-dev/gistapp

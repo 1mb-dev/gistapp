@@ -69,6 +69,7 @@ export const questions: QuestionDef[] = [
     id: 'usage-frequency',
     title: 'How often will people use it?',
     responseMode: 'pick-one',
+    optional: true,
     options: [
       {
         id: 'daily',
@@ -88,6 +89,7 @@ export const questions: QuestionDef[] = [
     id: 'device-target',
     title: 'Where will people use it?',
     responseMode: 'pick-one',
+    optional: true,
     options: [
       { id: 'phone', label: 'Phone first', detail: 'Optimized for mobile — great for daily apps' },
       {
@@ -317,6 +319,7 @@ export const questions: QuestionDef[] = [
     title: 'How many screens does your app have?',
     subtitle: 'This helps us decide whether you need a framework or just plain HTML.',
     responseMode: 'pick-one',
+    optional: true,
     options: [
       {
         id: 'single',
@@ -551,7 +554,14 @@ export function resolveQuestion(q: QuestionDef, persona?: Persona): QuestionDef 
   return resolved;
 }
 
-/** Get the auto-default option ID for a question/persona pair */
+/** Defaults applied when optional questions are skipped */
+export const skipDefaults: Record<string, string> = {
+  'usage-frequency': 'event-driven',
+  'device-target': 'both',
+  'page-count': 'single',
+};
+
+/** Get the auto-default option ID for a question/persona pair (new-builder only) */
 export function getAutoDefault(questionId: string, persona?: Persona): string | undefined {
   if (persona !== 'new-builder') return undefined;
   return newBuilderOverlays[questionId]?.autoDefault;

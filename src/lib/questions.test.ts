@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getVisibleQuestions, resolveQuestion, getAutoDefault, questions } from './questions';
+import {
+  getVisibleQuestions,
+  resolveQuestion,
+  getAutoDefault,
+  skipDefaults,
+  questions,
+} from './questions';
 
 describe('getVisibleQuestions', () => {
   it('shows base questions and hides conditional ones with no answers', () => {
@@ -131,6 +137,9 @@ describe('resolveQuestion', () => {
 describe('getAutoDefault', () => {
   it('returns undefined for developer persona', () => {
     expect(getAutoDefault('data-freshness', 'developer')).toBeUndefined();
+    expect(getAutoDefault('usage-frequency', 'developer')).toBeUndefined();
+    expect(getAutoDefault('device-target', 'developer')).toBeUndefined();
+    expect(getAutoDefault('page-count', 'developer')).toBeUndefined();
   });
 
   it('returns auto-default for new-builder persona', () => {
@@ -142,5 +151,38 @@ describe('getAutoDefault', () => {
 
   it('returns undefined for questions without auto-defaults', () => {
     expect(getAutoDefault('product-brief', 'new-builder')).toBeUndefined();
+  });
+});
+
+describe('skipDefaults', () => {
+  it('provides defaults for newly optional questions', () => {
+    expect(skipDefaults['usage-frequency']).toBe('event-driven');
+    expect(skipDefaults['device-target']).toBe('both');
+    expect(skipDefaults['page-count']).toBe('single');
+  });
+
+  it('does not provide defaults for non-optional questions', () => {
+    expect(skipDefaults['data-source']).toBeUndefined();
+    expect(skipDefaults['product-brief']).toBeUndefined();
+  });
+});
+
+describe('optional questions', () => {
+  it('marks usage-frequency, device-target, and page-count as optional', () => {
+    const optionalIds = questions.filter((q) => q.optional).map((q) => q.id);
+    expect(optionalIds).toContain('usage-frequency');
+    expect(optionalIds).toContain('device-target');
+    expect(optionalIds).toContain('page-count');
+  });
+
+  it('has skip defaults for every optional pick-one question', () => {
+    const optionalPickOne = questions.filter((q) => q.optional && q.responseMode === 'pick-one');
+    for (const q of optionalPickOne) {
+      const defaultOpt = skipDefaults[q.id];
+      if (defaultOpt) {
+        const validIds = q.options!.map((o) => o.id);
+        expect(validIds).toContain(defaultOpt);
+      }
+    }
   });
 });

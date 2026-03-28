@@ -393,8 +393,12 @@ import SiteHeader from '../components/SiteHeader.astro';
 
         // Share link
         const btnShare = document.getElementById('btn-share') as HTMLButtonElement;
+        const shareLabel = btnShare.textContent;
         btnShare.addEventListener('click', async () => {
+          if (btnShare.disabled) return;
+          btnShare.disabled = true;
           track('spec_shared', { tier });
+          btnShare.textContent = 'Creating link\u2026';
           try {
             const res = await fetch(`${INSIGHTS_URL}/api/share`, {
               method: 'POST',
@@ -405,15 +409,16 @@ import SiteHeader from '../components/SiteHeader.astro';
             const { id } = await res.json();
             const shareUrl = `${window.location.origin}/spec#${id}`;
             await navigator.clipboard.writeText(shareUrl);
-            const original = btnShare.textContent;
             btnShare.textContent = 'Link copied!';
             setTimeout(() => {
-              btnShare.textContent = original;
+              btnShare.textContent = shareLabel;
+              btnShare.disabled = false;
             }, 2000);
           } catch {
             btnShare.textContent = 'Could not create link';
             setTimeout(() => {
-              btnShare.textContent = 'Share link';
+              btnShare.textContent = shareLabel;
+              btnShare.disabled = false;
             }, 3000);
           }
         });

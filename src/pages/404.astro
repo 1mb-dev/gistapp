@@ -1,13 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
 ---
 
 <Base title="Page not found — Gist">
+  <SiteHeader />
+
   <main id="main-content" class="not-found">
     <div class="container">
       <h1 class="not-found-title">404</h1>
       <p class="not-found-message">This page doesn't exist.</p>
-      <a href="/" class="btn btn-primary">Back to home</a>
+      <div class="not-found-actions">
+        <a href="/" class="btn btn-primary">Back to home</a>
+        <a href="/create" class="btn btn-ghost">Create your spec</a>
+      </div>
     </div>
   </main>
 </Base>
@@ -32,5 +38,12 @@ import Base from '../layouts/Base.astro';
     font-size: var(--text-lg);
     margin-bottom: var(--space-10);
     line-height: var(--leading-relaxed);
+  }
+
+  .not-found-actions {
+    display: flex;
+    gap: var(--space-4);
+    justify-content: center;
+    flex-wrap: wrap;
   }
 </style>

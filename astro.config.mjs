@@ -6,7 +6,11 @@ import sitemap from '@astrojs/sitemap';
 export default defineConfig({
   site: 'https://gist.1mb.dev',
   output: 'static',
-  integrations: [sitemap()],
+  integrations: [
+    sitemap({
+      filter: (page) => !page.includes('/admin'),
+    }),
+  ],
   build: {
     format: 'directory',
   },
