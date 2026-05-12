@@ -66,6 +66,14 @@ import SiteHeader from '../components/SiteHeader.astro';
         <div class="spec-actions-bottom">
           <button id="btn-copy-2" class="btn btn-primary" type="button"> Copy to clipboard </button>
           <button id="btn-download-2" class="btn btn-ghost" type="button"> Download .md </button>
+          <button
+            id="btn-share-2"
+            class="btn btn-ghost"
+            type="button"
+            aria-label="Create shareable link"
+          >
+            Share link
+          </button>
         </div>
       </div>
     </section>
@@ -391,37 +399,41 @@ import SiteHeader from '../components/SiteHeader.astro';
           }
         });
 
-        // Share link
-        const btnShare = document.getElementById('btn-share') as HTMLButtonElement;
-        const shareLabel = btnShare.textContent;
-        btnShare.addEventListener('click', async () => {
-          if (btnShare.disabled) return;
-          btnShare.disabled = true;
-          track('spec_shared', { tier });
-          btnShare.textContent = 'Creating link\u2026';
-          try {
-            const res = await fetch(`${INSIGHTS_URL}/api/share`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(answers),
-            });
-            if (!res.ok) throw new Error(`Worker returned ${res.status}`);
-            const { id } = await res.json();
-            const shareUrl = `${window.location.origin}/spec#${id}`;
-            await navigator.clipboard.writeText(shareUrl);
-            btnShare.textContent = 'Link copied!';
-            setTimeout(() => {
-              btnShare.textContent = shareLabel;
-              btnShare.disabled = false;
-            }, 2000);
-          } catch {
-            btnShare.textContent = 'Could not create link';
-            setTimeout(() => {
-              btnShare.textContent = shareLabel;
-              btnShare.disabled = false;
-            }, 3000);
-          }
-        });
+        // Share link \u2014 bound to top + bottom buttons; both fire the same flow.
+        function bindShareButton(button: HTMLButtonElement): void {
+          const label = button.textContent;
+          button.addEventListener('click', async () => {
+            if (button.disabled) return;
+            button.disabled = true;
+            track('spec_shared', { tier });
+            button.textContent = 'Creating link\u2026';
+            try {
+              const res = await fetch(`${INSIGHTS_URL}/api/share`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(answers),
+              });
+              if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+              const { id } = await res.json();
+              const shareUrl = `${window.location.origin}/spec#${id}`;
+              await navigator.clipboard.writeText(shareUrl);
+              button.textContent = 'Link copied!';
+              setTimeout(() => {
+                button.textContent = label;
+                button.disabled = false;
+              }, 2000);
+            } catch {
+              button.textContent = 'Could not create link';
+              setTimeout(() => {
+                button.textContent = label;
+                button.disabled = false;
+              }, 3000);
+            }
+          });
+        }
+
+        bindShareButton(document.getElementById('btn-share') as HTMLButtonElement);
+        bindShareButton(document.getElementById('btn-share-2') as HTMLButtonElement);
 
         // Feedback
         const feedbackBtns = document.querySelectorAll<HTMLButtonElement>('.feedback-btn');
@@ -518,6 +530,15 @@ import SiteHeader from '../components/SiteHeader.astro';
   .spec-actions-bottom {
     margin-top: var(--space-6);
     margin-bottom: 0;
+  }
+
+  /* Strengthen the primary CTA so "Copy" reads as THE action, not one of
+     three equal options. Slightly larger padding + heavier font weight,
+     scoped to the spec action rows only. */
+  .spec-actions-top .btn-primary,
+  .spec-actions-bottom .btn-primary {
+    padding: 0.9rem 2.25rem;
+    font-weight: var(--weight-semibold);
   }
 
   .spec-preview-window {

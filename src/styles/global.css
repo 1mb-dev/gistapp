@@ -178,6 +178,13 @@ body::after {
   box-shadow: none !important;
 }
 
+/* The HTML `hidden` attribute defaults to display:none, but `.btn { display:
+   inline-flex }` overrides it. Without this rule, btnBack.hidden = true on
+   Q1 still renders a visible button. */
+.btn[hidden] {
+  display: none;
+}
+
 .btn-primary {
   background: var(--color-accent);
   color: var(--color-accent-text);

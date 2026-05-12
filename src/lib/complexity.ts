@@ -1,3 +1,4 @@
+import { resolveDataSource } from './resolve';
 import type { ComplexityTier, UserAnswers } from './types';
 
 /**
@@ -7,8 +8,7 @@ import type { ComplexityTier, UserAnswers } from './types';
  * This prevents the dry-run problem: every app getting maximum infrastructure.
  */
 export function determineComplexity(answers: Partial<UserAnswers>): ComplexityTier {
-  // Treat 'unsure' as conservative defaults
-  const dataSource = answers.dataSource === 'unsure' ? 'no-external' : answers.dataSource;
+  const dataSourceKind = resolveDataSource(answers).kind;
   const dataFreshness = answers.dataFreshness === 'unsure' ? 'daily' : answers.dataFreshness;
   const pageCount = answers.pageCount === 'unsure' ? 'single' : answers.pageCount;
   const scale = answers.scale;
@@ -26,13 +26,13 @@ export function determineComplexity(answers: Partial<UserAnswers>): ComplexityTi
   if (userInputType === 'user-saves-data') {
     return 'standard';
   }
-  if (scale === 'public' && dataSource === 'public-api') {
+  if (scale === 'public' && dataSourceKind === 'public-api') {
     return 'standard';
   }
   if (pageCount === 'many') {
     return 'standard';
   }
-  if (pageCount === 'few' && dataSource === 'public-api' && scale !== 'personal') {
+  if (pageCount === 'few' && dataSourceKind === 'public-api' && scale !== 'personal') {
     return 'standard';
   }
 
@@ -88,8 +88,8 @@ export function getTierComponents(answers: Partial<UserAnswers>): string[] {
 
 /** Determine if a Worker proxy is needed based on answers */
 export function needsWorkerProxy(answers: Partial<UserAnswers>): boolean {
-  const dataSource = answers.dataSource === 'unsure' ? 'no-external' : answers.dataSource;
-  if (dataSource !== 'public-api' && dataSource !== 'rss' && dataSource !== 'other') {
+  const kind = resolveDataSource(answers).kind;
+  if (kind !== 'public-api' && kind !== 'rss' && kind !== 'other') {
     return false;
   }
   // Public scale with API = likely needs caching proxy.
