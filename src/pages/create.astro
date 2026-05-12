@@ -170,7 +170,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     } catch {
       if (!saveFailedOnce) {
         saveFailedOnce = true;
-        const bar = document.getElementById('progress-bar');
+        const bar = document.querySelector('.progress-bar');
         if (bar) {
           const note = document.createElement('p');
           note.className = 'save-warning';
