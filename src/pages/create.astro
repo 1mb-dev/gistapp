@@ -164,6 +164,10 @@ import SiteHeader from '../components/SiteHeader.astro';
   const firedQuestionIds = new Set<string>();
   let userReachedSpec = false;
 
+  // Used by the Enter-to-advance handler to ignore keydowns that arrive
+  // within the autofill suggestion-accept window (~100ms after render).
+  let lastRenderTs = 0;
+
   function saveProgress() {
     try {
       sessionStorage.setItem('gist-progress', JSON.stringify(answers));
@@ -265,7 +269,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     progressFill.style.width = `${displayProgress}%`;
     const progressBar = progressFill.parentElement!;
     progressBar.setAttribute('aria-valuenow', String(displayProgress));
-    const counterText = `Question ${currentIndex + 1} of ~${visibleQuestions.length}`;
+    const counterText = `Question ${currentIndex + 1} of ${visibleQuestions.length}`;
     questionCounter.textContent =
       displayProgress >= 75 ? `${counterText} — Almost done!` : counterText;
     saveSignal.hidden = currentIndex < 1;
@@ -294,8 +298,9 @@ import SiteHeader from '../components/SiteHeader.astro';
       renderFields(q);
     }
 
-    // Navigation state — Back always visible (Q1 goes to persona selection)
-    btnBack.hidden = false;
+    // Navigation state. Hide Back on Q1: the persona screen is reachable via
+    // the logo / nav, and Back-on-first-screen reads as "did I miss a step?"
+    btnBack.hidden = currentIndex === 0;
     btnSkip.hidden = !q.optional;
     btnNext.disabled = !isQuestionAnswered(q);
 
@@ -321,6 +326,8 @@ import SiteHeader from '../components/SiteHeader.astro';
       });
       firedQuestionIds.add(q.id);
     }
+
+    lastRenderTs = Date.now();
   }
 
   function renderOptions(q: QuestionDef) {
@@ -462,6 +469,20 @@ import SiteHeader from '../components/SiteHeader.astro';
         btnNext.disabled = !isQuestionAnswered(q);
       });
 
+      // Enter-to-advance on single-line text inputs only. Guarded against
+      // browser autofill suggestion-accept (which dispatches a synthetic
+      // Enter keydown within ~100ms of render).
+      if (!field.multiline) {
+        (input as HTMLInputElement).addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return;
+          if (!e.isTrusted) return;
+          if (Date.now() - lastRenderTs < 500) return;
+          if (btnNext.disabled) return;
+          e.preventDefault();
+          btnNext.click();
+        });
+      }
+
       wrapper.appendChild(label);
       wrapper.appendChild(input);
 
@@ -502,6 +523,21 @@ import SiteHeader from '../components/SiteHeader.astro';
   }
 
   // --- Navigation ---
+
+  /** Apply the question's skipDefault if the user advanced (Skip or empty Next)
+   *  without filling it in. Optional questions are answered by Skip or by
+   *  Next-on-empty; both paths must materialize the default so the generator
+   *  never receives `undefined` for an optional field. */
+  function applySkipDefault(q: QuestionDef): void {
+    const defaultOpt = skipDefaults[q.id];
+    if (!defaultOpt) return;
+    const mapping = mapOptionToAnswer(q.id, defaultOpt);
+    if (mapping && answers[mapping.key] === undefined) {
+      (answers as Record<string, string>)[mapping.key] = mapping.value;
+      saveProgress();
+    }
+  }
+
   function advance() {
     const completed = visibleQuestions[currentIndex];
     if (completed) {
@@ -510,6 +546,8 @@ import SiteHeader from '../components/SiteHeader.astro';
         stepIndex: currentIndex,
         totalSteps: visibleQuestions.length,
       });
+      // Optional question advanced via Next without answer → materialize default.
+      if (completed.optional) applySkipDefault(completed);
     }
     currentIndex++;
     renderQuestion();
@@ -534,14 +572,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     const currentQuestion = visibleQuestions[currentIndex];
     if (currentQuestion) {
       track('question_skipped', { questionId: currentQuestion.id, persona: answers.persona ?? '' });
-      // Apply sensible default so the generator has a value to work with
-      const defaultOpt = skipDefaults[currentQuestion.id];
-      if (defaultOpt) {
-        const mapping = mapOptionToAnswer(currentQuestion.id, defaultOpt);
-        if (mapping && answers[mapping.key] === undefined) {
-          (answers as Record<string, string>)[mapping.key] = mapping.value;
-        }
-      }
+      applySkipDefault(currentQuestion);
     }
     advance();
   });
@@ -892,7 +923,10 @@ import SiteHeader from '../components/SiteHeader.astro';
     border-color: var(--color-accent);
     border-left-color: var(--color-accent);
     background: var(--color-accent-subtle);
-    box-shadow: var(--shadow-sm);
+    /* Outer ring + inner shadow give a clear "picked" signal distinct from hover. */
+    box-shadow:
+      0 0 0 2px var(--color-accent),
+      var(--shadow-sm);
   }
 
   .option-label {
@@ -995,12 +1029,17 @@ import SiteHeader from '../components/SiteHeader.astro';
     margin: var(--space-1) 0 0;
   }
 
-  /* Navigation */
+  /* Navigation: Back at the left, Skip/Next clustered at the right so a
+     thumb mis-tap on mobile can't wipe the just-entered answer. */
   .nav-actions {
     display: flex;
     gap: var(--space-3);
     justify-content: flex-end;
     margin-top: var(--space-10);
+  }
+
+  .nav-actions #btn-back {
+    margin-right: auto;
   }
 
   /* Stack confirmation */

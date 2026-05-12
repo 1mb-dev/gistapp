@@ -3,6 +3,7 @@ import {
   getVisibleQuestions,
   resolveQuestion,
   getAutoDefault,
+  mapOptionToAnswer,
   skipDefaults,
   questions,
 } from './questions';
@@ -163,6 +164,7 @@ describe('getAutoDefault', () => {
 
 describe('skipDefaults', () => {
   it('provides defaults for newly optional questions', () => {
+    expect(skipDefaults.audience).toBe('everyone');
     expect(skipDefaults['usage-frequency']).toBe('event-driven');
     expect(skipDefaults['device-target']).toBe('both');
     expect(skipDefaults['page-count']).toBe('single');
@@ -175,8 +177,9 @@ describe('skipDefaults', () => {
 });
 
 describe('optional questions', () => {
-  it('marks usage-frequency, device-target, and page-count as optional', () => {
+  it('marks audience, usage-frequency, device-target, and page-count as optional', () => {
     const optionalIds = questions.filter((q) => q.optional).map((q) => q.id);
+    expect(optionalIds).toContain('audience');
     expect(optionalIds).toContain('usage-frequency');
     expect(optionalIds).toContain('device-target');
     expect(optionalIds).toContain('page-count');
@@ -191,5 +194,10 @@ describe('optional questions', () => {
         expect(validIds).toContain(defaultOpt);
       }
     }
+  });
+
+  it('Q2 audience accepts the skip default via mapOptionToAnswer', () => {
+    const mapping = mapOptionToAnswer('audience', skipDefaults.audience);
+    expect(mapping).toEqual({ key: 'audience', value: 'everyone' });
   });
 });

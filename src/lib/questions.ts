@@ -56,12 +56,13 @@ export const questions: QuestionDef[] = [
     title: 'Who uses this?',
     subtitle: "Tell us about your users and how they'll interact with the app.",
     responseMode: 'multi-field',
+    optional: true,
     fields: [
       {
         key: 'audience',
         label: 'Who is it for?',
         placeholder: 'Commuters, weather enthusiasts, everyone',
-        required: true,
+        required: false,
       },
     ],
   },
@@ -556,6 +557,7 @@ export function resolveQuestion(q: QuestionDef, persona?: Persona): QuestionDef 
 
 /** Defaults applied when optional questions are skipped */
 export const skipDefaults: Record<string, string> = {
+  audience: 'everyone',
   'usage-frequency': 'event-driven',
   'device-target': 'both',
   'page-count': 'single',
@@ -573,6 +575,7 @@ export function mapOptionToAnswer(
   optionId: string,
 ): { key: keyof UserAnswers; value: string } | null {
   const mapping: Record<string, keyof UserAnswers> = {
+    audience: 'audience',
     'usage-frequency': 'usageFrequency',
     'device-target': 'deviceTarget',
     'data-source': 'dataSource',
