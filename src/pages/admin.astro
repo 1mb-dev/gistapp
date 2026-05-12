@@ -74,6 +74,17 @@ import SiteHeader from '../components/SiteHeader.astro';
               <div class="panel-body" id="persona-tier-body"></div>
               <p class="panel-insight" id="persona-tier-insight"></p>
             </div>
+
+            <div class="panel panel-full" id="panel-question-funnel">
+              <h2 class="panel-title">Per-question funnel</h2>
+              <div class="panel-body" id="question-funnel-body"></div>
+              <p class="panel-insight" id="question-funnel-insight"></p>
+            </div>
+
+            <div class="panel" id="panel-share-rejections">
+              <h2 class="panel-title">Share endpoint rejections</h2>
+              <div class="panel-body" id="share-rejections-body"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -450,6 +461,110 @@ import SiteHeader from '../components/SiteHeader.astro';
     renderSatisfaction(data);
     renderActions(data);
     renderPersonaTierMatrix(data);
+    renderQuestionFunnel(data);
+    renderShareRejections(data);
+  }
+
+  /** Aggregate `<event>:<questionId>` keys (skipping composite persona-scoped
+   *  keys like `<event>:<questionId>:<persona>`). Returns a map of questionId → count. */
+  function sumByQuestion(data: StatsResponse, prefix: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const day of Object.values(data)) {
+      for (const key of Object.keys(day)) {
+        if (!key.startsWith(`${prefix}:`)) continue;
+        const tail = key.slice(prefix.length + 1);
+        if (tail.includes(':')) continue; // composite keys: ignore in this panel
+        out[tail] = (out[tail] ?? 0) + day[key];
+      }
+    }
+    return out;
+  }
+
+  function renderQuestionFunnel(data: StatsResponse): void {
+    const body = document.getElementById('question-funnel-body')!;
+    const insight = document.getElementById('question-funnel-insight')!;
+    body.replaceChildren();
+
+    const arrived = sumByQuestion(data, 'question_arrived');
+    const abandoned = sumByQuestion(data, 'question_abandoned');
+    const skipped = sumByQuestion(data, 'question_skipped');
+
+    const questionIds = Array.from(
+      new Set([...Object.keys(arrived), ...Object.keys(abandoned), ...Object.keys(skipped)]),
+    ).sort();
+
+    if (questionIds.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'panel-empty';
+      empty.textContent = 'No per-question data yet — events emit once v2.3.0 is deployed.';
+      body.appendChild(empty);
+      insight.textContent = '';
+      return;
+    }
+
+    const maxArrived = Math.max(...Object.values(arrived), 1);
+
+    let worstQ = '';
+    let worstAbandonRate = 0;
+
+    for (const id of questionIds) {
+      const a = arrived[id] ?? 0;
+      const ab = abandoned[id] ?? 0;
+      const sk = skipped[id] ?? 0;
+
+      const row = document.createElement('div');
+      row.className = 'question-funnel-row';
+
+      const idEl = document.createElement('span');
+      idEl.className = 'metric-bar-label';
+      idEl.textContent = id;
+      row.appendChild(idEl);
+
+      const bar = createMetricBar(`arrived ${pct(a, maxArrived)}`, a, maxArrived);
+      bar.classList.add('compact');
+      row.appendChild(bar);
+
+      const counts = document.createElement('span');
+      counts.className = 'metric-bar-value';
+      counts.textContent = `${a} arrived / ${ab} abandoned / ${sk} skipped`;
+      row.appendChild(counts);
+
+      body.appendChild(row);
+
+      if (a > 0 && ab / a > worstAbandonRate) {
+        worstAbandonRate = ab / a;
+        worstQ = id;
+      }
+    }
+
+    insight.textContent = worstQ
+      ? `Highest abandon rate: ${worstQ} (${Math.round(worstAbandonRate * 100)}% of arrivals)`
+      : '';
+  }
+
+  function renderShareRejections(data: StatsResponse): void {
+    const body = document.getElementById('share-rejections-body')!;
+    body.replaceChildren();
+
+    const reasons = ['origin', 'ratelimit', 'payload'] as const;
+    const counts = reasons.map((r) => ({
+      reason: r,
+      count: sumMetric(data, `share_rejected:${r}`),
+    }));
+    const max = Math.max(...counts.map((c) => c.count), 1);
+    const total = counts.reduce((s, c) => s + c.count, 0);
+
+    if (total === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'panel-empty';
+      empty.textContent = 'No share rejections recorded.';
+      body.appendChild(empty);
+      return;
+    }
+
+    for (const { reason, count } of counts) {
+      body.appendChild(createMetricBar(reason, count, max));
+    }
   }
 
   // Period selector

@@ -1,58 +1,83 @@
-import { describe, it, expect } from 'vitest';
-import { generateSpec, generateFilename } from './generator';
+import { describe, expect, it } from 'vitest';
+import { generateSpec } from './generator';
+import type { UserAnswers } from './types';
 
-describe('Spec Examples for Documentation', () => {
-  it('generates and saves minimal and detailed specs', () => {
-    const minimalAnswers = {
-      persona: 'developer' as const,
-      title: 'Daily Task Counter',
-      description:
-        'Simple counter to track tasks completed each day. No persistence—just a daily tally.',
-      headlineValue: 'Count your wins',
-      audience: 'Personal use',
-      usageFrequency: 'daily' as const,
-      deviceTarget: 'both' as const,
-      dataSource: 'no-external' as const,
-      scale: 'personal' as const,
-      pageCount: 'single' as const,
-      hosting: 'cloudflare-pages' as const,
-      stackConfirmed: true,
-    };
+/** Property-assertion tests covering each `DataSource` variant.
+ *  Replaces the prior smoke test (length > 0 + presence of "Implementation Order")
+ *  with stronger checks that encode the contract of generator output per kind. */
 
-    const detailedAnswers = {
-      persona: 'developer' as const,
+const baseAnswers: UserAnswers = {
+  persona: 'developer',
+  title: 'Sample App',
+  description: 'A sample app for testing the generator.',
+  headlineValue: 'Test the generator',
+  audience: 'Personal use',
+  usageFrequency: 'daily',
+  deviceTarget: 'both',
+  dataSource: 'no-external',
+  scale: 'personal',
+  pageCount: 'single',
+  hosting: 'cloudflare-pages',
+  stackConfirmed: true,
+};
+
+describe('generator output per DataSource variant', () => {
+  describe("public-api ('Weather Dashboard')", () => {
+    const spec = generateSpec({
+      ...baseAnswers,
       title: 'Weather Dashboard',
-      description:
-        'Real-time weather app showing current conditions and 7-day forecast. Public app for commuters.',
-      headlineValue: 'See weather anywhere',
+      description: 'Real-time weather app for commuters.',
       audience: 'Commuters',
-      usageFrequency: 'daily' as const,
-      deviceTarget: 'both' as const,
-      dataSource: 'public-api' as const,
-      scale: 'public' as const,
-      dataFreshness: 'hourly' as const,
-      apiDescription:
-        'Current weather and 7-day forecast by location (temperature, conditions, UV index)',
+      dataSource: 'public-api',
+      scale: 'public',
+      dataFreshness: 'hourly',
+      apiDescription: 'Current weather and 7-day forecast by location',
       apiKnownName: 'Open-Meteo',
-      pageCount: 'many' as const,
-      hosting: 'cloudflare-pages' as const,
-      stackConfirmed: true,
-    };
+      pageCount: 'many',
+    });
 
-    const minimalSpec = generateSpec(minimalAnswers);
-    const minimalFilename = generateFilename(minimalAnswers);
+    it('produces a substantive spec', () => expect(spec.length).toBeGreaterThan(1000));
+    it('includes Implementation Order section', () =>
+      expect(spec).toContain('## Implementation Order'));
+    it('includes Suggested Prompt section', () => expect(spec).toContain('## Suggested Prompt'));
+    it('mentions the API by known name', () => expect(spec).toContain('Open-Meteo'));
+    it('does not emit user-content scaffolding', () => expect(spec).not.toContain('simple-form'));
+  });
 
-    const detailedSpec = generateSpec(detailedAnswers);
-    const detailedFilename = generateFilename(detailedAnswers);
+  describe("user-content ('Idea Tracker')", () => {
+    const spec = generateSpec({
+      ...baseAnswers,
+      title: 'Idea Tracker',
+      description: 'Save and revisit personal ideas as I capture them.',
+      audience: 'Just me',
+      dataSource: 'user-content',
+      userInputType: 'user-saves-data',
+    });
 
-    // Verify specs generate correctly
-    expect(minimalSpec.length).toBeGreaterThan(0);
-    expect(detailedSpec.length).toBeGreaterThan(0);
-    expect(minimalSpec).toContain('## Implementation Order');
-    expect(detailedSpec).toContain('## Implementation Order');
+    it('produces a substantive spec', () => expect(spec.length).toBeGreaterThan(1000));
+    it('includes Implementation Order section', () =>
+      expect(spec).toContain('## Implementation Order'));
+    it('includes Suggested Prompt section', () => expect(spec).toContain('## Suggested Prompt'));
+    it('emits User Input & Storage section', () =>
+      expect(spec).toContain('### User Input & Storage'));
+    it('does not emit external API mock scaffolding', () =>
+      expect(spec).not.toContain('Open-Meteo'));
+  });
 
-    console.log('\n✓ Specs generated and validated:');
-    console.log(`  - ${minimalFilename} (${minimalSpec.split('\n').length} lines)`);
-    console.log(`  - ${detailedFilename} (${detailedSpec.split('\n').length} lines)`);
+  describe("no-external ('Daily Task Counter')", () => {
+    const spec = generateSpec({
+      ...baseAnswers,
+      title: 'Daily Task Counter',
+      description: 'Tally tasks completed each day. Resets at midnight.',
+    });
+
+    it('produces a substantive spec', () => expect(spec.length).toBeGreaterThan(500));
+    it('includes Implementation Order section', () =>
+      expect(spec).toContain('## Implementation Order'));
+    it('includes Suggested Prompt section', () => expect(spec).toContain('## Suggested Prompt'));
+    it('does not emit Data & Caching section', () =>
+      expect(spec).not.toContain('### Data & Caching'));
+    it('does not emit external API scaffolding', () =>
+      expect(spec).not.toContain('apiDescription'));
   });
 });

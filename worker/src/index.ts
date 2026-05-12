@@ -1,13 +1,18 @@
 interface Env {
   INSIGHTS: KVNamespace;
   ADMIN_TOKEN: string;
+  /** Set to 'true' in .dev.vars to allow localhost Origins for `npm run worker:dev`.
+   *  Never set in production. */
+  ALLOW_DEV_ORIGINS?: string;
 }
 
 const ALLOWED_EVENTS = [
   'page_viewed',
   'persona_selected',
+  'question_arrived',
   'question_completed',
   'question_skipped',
+  'question_abandoned',
   'spec_generated',
   'spec_downloaded',
   'spec_copied',
@@ -23,6 +28,32 @@ type AllowedEvent = (typeof ALLOWED_EVENTS)[number];
 const MAX_PAYLOAD_CHARS = 512;
 const MAX_SHARE_CHARS = 4096;
 const TTL_90_DAYS = 7_776_000;
+const SHARE_RATE_LIMIT_PER_MINUTE = 10;
+
+const ALLOWED_SHARE_ORIGINS_PROD = new Set(['https://gist.1mb.dev']);
+
+const ALLOWED_SHARE_ORIGINS_DEV = new Set([
+  'http://localhost:8787',
+  'http://127.0.0.1:8787',
+  'http://localhost:4321',
+  'http://127.0.0.1:4321',
+]);
+
+function allowedShareOrigins(env: Env): Set<string> {
+  if (env.ALLOW_DEV_ORIGINS === 'true') {
+    return new Set([...ALLOWED_SHARE_ORIGINS_PROD, ...ALLOWED_SHARE_ORIGINS_DEV]);
+  }
+  return ALLOWED_SHARE_ORIGINS_PROD;
+}
+
+/** Resolve the client IP from CF-Connecting-IP. `request.cf.clientIp` does not
+ *  exist on the runtime (cf carries bot/geo/ASN, not IP); falling back to
+ *  'unknown' silently buckets all traffic together, defeating per-IP limits. */
+function clientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') || 'unknown';
+}
+
+const FEEDBACK_VALUES = new Set(['great', 'okay', 'needs-work']);
 
 // CORS only applies to browsers; use curl for local testing. For browser testing
 // with wrangler dev, requests from localhost won't match this origin — test with
@@ -119,9 +150,25 @@ function getDimensionalKeys(
     const v = safeDimensionValue(data.questionId);
     if (v) keys.push(`${date}:question_skipped:${v}`);
   }
+  if (event === 'question_arrived') {
+    const q = safeDimensionValue(data.questionId);
+    if (q) keys.push(`${date}:question_arrived:${q}`);
+    const persona = safeDimensionValue(data.persona);
+    if (q && persona) keys.push(`${date}:question_arrived:${q}:${persona}`);
+  }
+  if (event === 'question_abandoned') {
+    const q = safeDimensionValue(data.questionId);
+    if (q) keys.push(`${date}:question_abandoned:${q}`);
+    const persona = safeDimensionValue(data.persona);
+    if (q && persona) keys.push(`${date}:question_abandoned:${q}:${persona}`);
+  }
   if (event === 'feedback') {
-    const v = safeDimensionValue(data.feedback);
-    if (v) keys.push(`${date}:feedback:${v}`);
+    // Restrict to known enum values (matches client schema). Drops the
+    // dimension silently if a future schema change adds a value before this
+    // whitelist updates — better than admitting arbitrary strings into KV.
+    if (typeof data.feedback === 'string' && FEEDBACK_VALUES.has(data.feedback)) {
+      keys.push(`${date}:feedback:${data.feedback}`);
+    }
   }
 
   return keys;
@@ -159,10 +206,9 @@ async function handleEvent(request: Request, env: Env): Promise<Response> {
 
 async function handleStats(request: Request, env: Env): Promise<Response> {
   // Rate limiting: 5 attempts per minute per IP. Prevents brute force attacks.
-  // Cloudflare Workers provides clientIp in request.cf
-  const clientIp = (request.cf?.clientIp as string) || 'unknown';
+  const ip = clientIp(request);
   const now = Math.floor(Date.now() / 1000);
-  const minuteKey = `auth_ratelimit:${clientIp}:${now - (now % 60)}`; // Bucket by minute
+  const minuteKey = `auth_ratelimit:${ip}:${now - (now % 60)}`; // Bucket by minute
 
   const raw = await env.INSIGHTS.get(minuteKey);
   const attempts = Math.max(0, parseInt(raw || '0', 10));
@@ -217,8 +263,11 @@ async function handleStats(request: Request, env: Env): Promise<Response> {
   });
 }
 
+// 8-char IDs at 62⁸ entropy ≈ 218T. Collision probability is negligible at any
+// realistic scale, so no get-before-put check (KV eventual consistency would
+// make it unsound anyway). GET regex still accepts 6-char IDs from v2.2.x.
 function generateShareId(): string {
-  const bytes = new Uint8Array(6);
+  const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let id = '';
@@ -226,23 +275,93 @@ function generateShareId(): string {
   return id;
 }
 
+type ShareRejectReason = 'origin' | 'ratelimit' | 'payload';
+
+async function recordShareRejection(reason: ShareRejectReason, env: Env): Promise<void> {
+  const date = today();
+  try {
+    await Promise.all([
+      increment(env.INSIGHTS, `${date}:share_rejected`),
+      increment(env.INSIGHTS, `${date}:share_rejected:${reason}`),
+    ]);
+  } catch (err) {
+    // Observability is best-effort; never block the rejection itself.
+    console.error('Failed to record share_rejected event:', err);
+  }
+}
+
+/** Per-IP per-minute share rate-limit bucket.
+ *  Best-effort cap: read-then-write on KV is not atomic, so under N-parallel
+ *  POSTs from one IP, up to N can pass before the counter increments. The
+ *  Origin allowlist is the primary defense; this is defense-in-depth.
+ *  Fail-open on read errors (KV degraded) so a KV blip doesn't kill the
+ *  user-facing share path. The share `put` itself fails closed. */
+async function checkShareRateLimit(ip: string, env: Env): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000);
+  const minuteKey = `share_ratelimit:${ip}:${now - (now % 60)}`;
+
+  let attempts = 0;
+  try {
+    const raw = await env.INSIGHTS.get(minuteKey);
+    attempts = Math.max(0, parseInt(raw || '0', 10));
+  } catch (err) {
+    console.error('Share rate-limit KV read failed (fail-open):', err);
+    return true;
+  }
+
+  if (attempts >= SHARE_RATE_LIMIT_PER_MINUTE) {
+    return false;
+  }
+
+  try {
+    await env.INSIGHTS.put(minuteKey, String(attempts + 1), { expirationTtl: 70 });
+  } catch (err) {
+    console.error('Share rate-limit KV write failed (best-effort):', err);
+  }
+  return true;
+}
+
 async function handleShareCreate(request: Request, env: Env): Promise<Response> {
   if (!env.INSIGHTS) {
     return corsResponse('Service misconfigured', 500);
   }
 
+  // Origin allowlist — primary defense against scripted abuse from non-browser
+  // clients. Browsers send Origin on cross-origin POST; same-origin requests
+  // from the gist.1mb.dev page set it too.
+  const origin = request.headers.get('Origin');
+  if (!origin || !allowedShareOrigins(env).has(origin)) {
+    await recordShareRejection('origin', env);
+    return corsResponse('Forbidden origin', 403);
+  }
+
+  // Per-IP minute bucket — defense-in-depth.
+  const ip = clientIp(request);
+  const allowed = await checkShareRateLimit(ip, env);
+  if (!allowed) {
+    await recordShareRejection('ratelimit', env);
+    return new Response('Too many share requests', {
+      status: 429,
+      headers: { ...CORS_HEADERS, 'Retry-After': '60' },
+    });
+  }
+
   const raw = await request.text();
   if (raw.length > MAX_SHARE_CHARS) {
+    await recordShareRejection('payload', env);
     return corsResponse('Payload too large', 413);
   }
 
   try {
     JSON.parse(raw); // validate JSON
   } catch {
+    await recordShareRejection('payload', env);
     return corsResponse('Invalid JSON', 400);
   }
 
   const id = generateShareId();
+  // Share write is fail-closed: if KV is unavailable the user must know,
+  // otherwise we'd silently lose their spec data.
   await env.INSIGHTS.put(`share:${id}`, raw, { expirationTtl: TTL_90_DAYS });
 
   return new Response(JSON.stringify({ id }), {
@@ -256,7 +375,8 @@ async function handleShareGet(id: string, env: Env): Promise<Response> {
     return corsResponse('Service misconfigured', 500);
   }
 
-  if (!/^[A-Za-z0-9]{6}$/.test(id)) {
+  // Accepts 6-char IDs from v2.2.x and 8-char IDs from v2.3.0+.
+  if (!/^[A-Za-z0-9]{6,8}$/.test(id)) {
     return corsResponse('Invalid share ID', 400);
   }
 
@@ -310,7 +430,7 @@ export default {
         return handleShareCreate(request, env);
       }
 
-      const shareMatch = url.pathname.match(/^\/api\/share\/([A-Za-z0-9]+)$/);
+      const shareMatch = url.pathname.match(/^\/api\/share\/([A-Za-z0-9]{6,8})$/);
       if (shareMatch && request.method === 'GET') {
         return handleShareGet(shareMatch[1], env);
       }

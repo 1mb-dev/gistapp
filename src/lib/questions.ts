@@ -1,17 +1,17 @@
+import { resolveDataSource } from './resolve';
 import type { QuestionDef, UserAnswers, Persona, PersonaOverlay } from './types';
 
 /** Returns true if the user selected an external data source.
- *  Intentionally checks raw answers (no 'unsure' resolution) — conditional questions
- *  should only appear when the user made an explicit external-data choice. The generator's
- *  hasExternalData resolves 'unsure' first because the spec needs resolved values. */
+ *  Uses the shared resolver: `'unsure'` folds to `'no-external'`, so unsure users
+ *  do not see conditional external-data questions. */
 function hasExternalData(answers: Partial<UserAnswers>): boolean {
-  const src = answers.dataSource;
-  return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
+  const kind = resolveDataSource(answers).kind;
+  return kind === 'public-api' || kind === 'rss' || kind === 'static-file' || kind === 'other';
 }
 
 /** Returns true if the user selected user-generated content */
 function hasUserContent(answers: Partial<UserAnswers>): boolean {
-  return answers.dataSource === 'user-content';
+  return resolveDataSource(answers).kind === 'user-content';
 }
 
 /** Returns true if the user's audience suggests mobile/daily use.
@@ -56,12 +56,13 @@ export const questions: QuestionDef[] = [
     title: 'Who uses this?',
     subtitle: "Tell us about your users and how they'll interact with the app.",
     responseMode: 'multi-field',
+    optional: true,
     fields: [
       {
         key: 'audience',
         label: 'Who is it for?',
         placeholder: 'Commuters, weather enthusiasts, everyone',
-        required: true,
+        required: false,
       },
     ],
   },
@@ -556,6 +557,7 @@ export function resolveQuestion(q: QuestionDef, persona?: Persona): QuestionDef 
 
 /** Defaults applied when optional questions are skipped */
 export const skipDefaults: Record<string, string> = {
+  audience: 'everyone',
   'usage-frequency': 'event-driven',
   'device-target': 'both',
   'page-count': 'single',
@@ -573,6 +575,7 @@ export function mapOptionToAnswer(
   optionId: string,
 ): { key: keyof UserAnswers; value: string } | null {
   const mapping: Record<string, keyof UserAnswers> = {
+    audience: 'audience',
     'usage-frequency': 'usageFrequency',
     'device-target': 'deviceTarget',
     'data-source': 'dataSource',
