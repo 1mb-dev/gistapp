@@ -120,7 +120,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     shouldRecommendPWA,
   } from '../lib/complexity';
   import type { UserAnswers, QuestionDef, Persona } from '../lib/types';
-  import { track } from '../lib/insights';
+  import { fireQuestionAbandoned, track } from '../lib/insights';
 
   // --- State ---
   const saved = (() => {
@@ -151,6 +151,18 @@ import SiteHeader from '../components/SiteHeader.astro';
   let currentIndex = 0;
 
   let saveFailedOnce = false;
+
+  // Telemetry state. `currentQuestionId` reflects the question currently on
+  // screen (null when on persona or stack screens). `firedQuestionIds` is the
+  // set of question IDs that already emitted `question_arrived` this session
+  // — guards against back-then-forward re-fires (Q3 → Q2 → Q3) that a single
+  // last-id var would miss. Cleared on persona change so a different persona's
+  // question set can re-fire.
+  // `userReachedSpec` suppresses `question_abandoned` once the user has
+  // completed the flow.
+  let currentQuestionId: string | null = null;
+  const firedQuestionIds = new Set<string>();
+  let userReachedSpec = false;
 
   function saveProgress() {
     try {
@@ -192,9 +204,14 @@ import SiteHeader from '../components/SiteHeader.astro';
   personaCards.forEach((card) => {
     card.addEventListener('click', () => {
       const persona = card.dataset.persona as Persona;
+      const personaChanged = answers.persona !== undefined && answers.persona !== persona;
       answers.persona = persona;
       track('persona_selected', { persona });
       saveProgress();
+
+      // If the user switched personas mid-session, allow the new persona's
+      // questions to re-fire `question_arrived`.
+      if (personaChanged) firedQuestionIds.clear();
 
       personaCards.forEach((c) => c.setAttribute('aria-pressed', 'false'));
       card.setAttribute('aria-pressed', 'true');
@@ -291,6 +308,19 @@ import SiteHeader from '../components/SiteHeader.astro';
 
     // Focus management
     questionContainer.focus();
+
+    // Telemetry: fire question_arrived once per unique question id per session.
+    // Set membership covers back-then-forward paths that a last-id var would
+    // re-fire (e.g. Q3 → Q2 → Q3).
+    currentQuestionId = q.id;
+    if (!firedQuestionIds.has(q.id)) {
+      track('question_arrived', {
+        questionId: q.id,
+        persona: answers.persona ?? '',
+        stepIndex: currentIndex,
+      });
+      firedQuestionIds.add(q.id);
+    }
   }
 
   function renderOptions(q: QuestionDef) {
@@ -493,6 +523,7 @@ import SiteHeader from '../components/SiteHeader.astro';
       renderQuestion();
     } else {
       // Q1 Back → return to persona selection
+      currentQuestionId = null;
       questionSection.hidden = true;
       personaSection.hidden = false;
       personaCards.forEach((c) => c.setAttribute('aria-pressed', 'false'));
@@ -521,6 +552,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     progressFill.parentElement!.setAttribute('aria-valuenow', '100');
     questionSection.hidden = true;
     stackSection.hidden = false;
+    currentQuestionId = null;
 
     const tier = determineComplexity(answers);
     const tierInfo = tierDescriptions[tier];
@@ -628,6 +660,7 @@ import SiteHeader from '../components/SiteHeader.astro';
       tier: determineComplexity(answers),
       questionCount: visibleQuestions.length,
     });
+    userReachedSpec = true;
 
     stackSection.hidden = true;
     generatingSection.hidden = false;
@@ -653,6 +686,22 @@ import SiteHeader from '../components/SiteHeader.astro';
     setTimeout(() => {
       window.location.href = '/spec';
     }, 500);
+  });
+
+  // Fire question_abandoned beacon on tab close if the user was mid-question
+  // (and not on the spec page). pagehide + sendBeacon is the reliable pair for
+  // page-unload telemetry per MDN/Cloudflare guidance.
+  window.addEventListener('pagehide', () => {
+    if (typeof navigator === 'undefined' || !navigator.sendBeacon) return;
+    fireQuestionAbandoned(
+      {
+        currentQuestionId,
+        persona: answers.persona ?? '',
+        stepIndex: currentIndex,
+        userReachedSpec,
+      },
+      navigator.sendBeacon.bind(navigator),
+    );
   });
 </script>
 
