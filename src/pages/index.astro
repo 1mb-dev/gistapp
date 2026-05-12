@@ -1,9 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
 import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+// Structured data so LLMs / search engines can describe what this tool is
+// without scraping prose. SoftwareApplication schema fits a free web tool.
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Gist',
+  url: 'https://gist.1mb.dev',
+  description:
+    'Free tool that turns an app idea into a build-ready markdown specification for AI coding assistants.',
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Any',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
 ---
 
 <Base title="Gist — Turn your app idea into a build-ready spec">
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   <SiteHeader animate />
 
   <main id="main-content">
@@ -212,16 +228,7 @@ import SiteHeader from '../components/SiteHeader.astro';
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>
-        Built with Gist. Open source on <a
-          href="https://github.com/1mb-dev/gistapp"
-          class="footer-link">GitHub</a
-        >. <a href="/privacy" class="footer-link">Privacy</a>.
-      </p>
-    </div>
-  </footer>
+  <SiteFooter />
 </Base>
 
 <style>
