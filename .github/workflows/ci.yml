@@ -2,4 +2,4 @@ name: CI
 on: [push, pull_request]
 jobs:
   ci:
-    uses: 1mb-dev/.github/.github/workflows/ci-node.yml@main
+    uses: 1mb-dev/.github/.github/workflows/ci-node.yml@c9fbec465d957bc95dfbdaacb7546d7187513f95

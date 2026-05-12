@@ -27,10 +27,11 @@ function createMockKV(): KVNamespace {
 // Import worker — we test the fetch handler directly
 import worker from './index';
 
-function makeEnv(kv?: KVNamespace) {
+function makeEnv(kv?: KVNamespace, opts?: { allowDevOrigins?: boolean }) {
   return {
     INSIGHTS: kv ?? createMockKV(),
     ADMIN_TOKEN: 'test-token-do-not-use-in-production',
+    ALLOW_DEV_ORIGINS: opts?.allowDevOrigins ? 'true' : undefined,
   };
 }
 
@@ -515,10 +516,18 @@ describe('Error sanitization', () => {
 
 // --- Share link tests ---
 
-function postShare(body: string, env = makeEnv()): Promise<Response> {
+function postShare(
+  body: string,
+  env = makeEnv(),
+  origin: string | null = 'https://gist.1mb.dev',
+  clientIp?: string,
+): Promise<Response> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (origin) headers.Origin = origin;
+  if (clientIp) headers['CF-Connecting-IP'] = clientIp;
   const request = new Request('https://worker.test/api/share', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body,
   });
   return worker.fetch(request, env);
@@ -530,14 +539,14 @@ function getShare(id: string, env = makeEnv()): Promise<Response> {
 }
 
 describe('POST /api/share', () => {
-  it('stores answers and returns a 6-char ID', async () => {
+  it('stores answers and returns an 8-char ID', async () => {
     const kv = createMockKV();
     const env = makeEnv(kv);
     const answers = JSON.stringify({ persona: 'developer', title: 'Test App' });
     const res = await postShare(answers, env);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string };
-    expect(body.id).toMatch(/^[A-Za-z0-9]{6}$/);
+    expect(body.id).toMatch(/^[A-Za-z0-9]{8}$/);
   });
 
   it('rejects invalid JSON', async () => {
@@ -558,10 +567,131 @@ describe('POST /api/share', () => {
     const shareCall = putCalls.find((c: string[]) => c[0].startsWith('share:'));
     expect(shareCall?.[2]).toMatchObject({ expirationTtl: 7_776_000 });
   });
+
+  it('rejects forbidden Origin with 403', async () => {
+    const res = await postShare(JSON.stringify({ x: 1 }), makeEnv(), 'https://evil.example');
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects missing Origin with 403', async () => {
+    const res = await postShare(JSON.stringify({ x: 1 }), makeEnv(), null);
+    expect(res.status).toBe(403);
+  });
+
+  it('accepts localhost dev origins when ALLOW_DEV_ORIGINS=true', async () => {
+    const res = await postShare(
+      JSON.stringify({ x: 1 }),
+      makeEnv(undefined, { allowDevOrigins: true }),
+      'http://localhost:4321',
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects localhost dev origins when ALLOW_DEV_ORIGINS is unset (prod default)', async () => {
+    const res = await postShare(JSON.stringify({ x: 1 }), makeEnv(), 'http://localhost:4321');
+    expect(res.status).toBe(403);
+  });
+
+  it('rate-limits the 11th sequential POST from the same IP', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    for (let i = 0; i < 10; i++) {
+      const res = await postShare(JSON.stringify({ i }), env, 'https://gist.1mb.dev', '1.2.3.4');
+      expect(res.status).toBe(201);
+    }
+    const res = await postShare(
+      JSON.stringify({ final: true }),
+      env,
+      'https://gist.1mb.dev',
+      '1.2.3.4',
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('60');
+  });
+
+  it('rate-limit buckets are per-IP — distinct IPs do not share a cap', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    // Exhaust the cap for IP A
+    for (let i = 0; i < 10; i++) {
+      await postShare(JSON.stringify({ i }), env, 'https://gist.1mb.dev', '1.1.1.1');
+    }
+    expect(
+      (await postShare(JSON.stringify({}), env, 'https://gist.1mb.dev', '1.1.1.1')).status,
+    ).toBe(429);
+    // IP B is unaffected
+    expect(
+      (await postShare(JSON.stringify({}), env, 'https://gist.1mb.dev', '2.2.2.2')).status,
+    ).toBe(201);
+  });
+
+  it('parallel POSTs leak through the cap (documented non-atomic behavior)', async () => {
+    // Read-then-write bucket is non-atomic by design (see worker code comment).
+    // Mock KV serializes microtasks such that all N parallel requests read 0
+    // before any write lands — modelling the production race window. The
+    // Origin allowlist is the primary defense; this test locks the contract
+    // so a future "fix" forces us to update the docs first.
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const responses = await Promise.all(
+      Array.from({ length: 15 }, (_, i) => postShare(JSON.stringify({ i }), env)),
+    );
+    const statuses = responses.map((r) => r.status);
+    expect(statuses.every((s) => s === 201)).toBe(true);
+  });
+
+  it('fails open if rate-limit KV read throws', async () => {
+    const kv = createMockKV();
+    // First INSIGHTS.get is the rate-limit bucket read; force it to throw.
+    let callCount = 0;
+    const originalGet = kv.get;
+    kv.get = vi.fn((...args) => {
+      callCount++;
+      if (callCount === 1) throw new Error('KV down');
+      return originalGet.apply(kv, args as Parameters<typeof originalGet>);
+    });
+    const env = makeEnv(kv);
+    const res = await postShare(JSON.stringify({ x: 1 }), env);
+    expect(res.status).toBe(201);
+  });
+
+  it('records share_rejected event with origin reason on forbidden Origin', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postShare(JSON.stringify({ x: 1 }), env, 'https://evil.example');
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const reasonKey = putCalls
+      .map((c: string[]) => c[0])
+      .find((k: string) => k.endsWith(':share_rejected:origin'));
+    expect(reasonKey).toBeDefined();
+  });
+
+  it('records share_rejected event with ratelimit reason on 429', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    for (let i = 0; i < 10; i++) await postShare(JSON.stringify({ i }), env);
+    await postShare(JSON.stringify({ final: true }), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const reasonKey = putCalls
+      .map((c: string[]) => c[0])
+      .find((k: string) => k.endsWith(':share_rejected:ratelimit'));
+    expect(reasonKey).toBeDefined();
+  });
+
+  it('records share_rejected event with payload reason on oversized body', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postShare('x'.repeat(4097), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const reasonKey = putCalls
+      .map((c: string[]) => c[0])
+      .find((k: string) => k.endsWith(':share_rejected:payload'));
+    expect(reasonKey).toBeDefined();
+  });
 });
 
 describe('GET /api/share/:id', () => {
-  it('retrieves stored answers', async () => {
+  it('retrieves stored answers (8-char ID round-trip)', async () => {
     const kv = createMockKV();
     const env = makeEnv(kv);
     const answers = JSON.stringify({ persona: 'developer', title: 'Test App' });
@@ -572,6 +702,20 @@ describe('GET /api/share/:id', () => {
     expect(getRes.status).toBe(200);
     const body = await getRes.json();
     expect(body).toEqual({ persona: 'developer', title: 'Test App' });
+  });
+
+  it('still resolves 6-char IDs from v2.2.x (back-compat)', async () => {
+    const kv = createMockKV();
+    await kv.put('share:legacy', JSON.stringify({ legacy: true }), { expirationTtl: 7_776_000 });
+    const env = makeEnv(kv);
+    const res = await getShare('legacy', env);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ legacy: true });
+  });
+
+  it('rejects 5-char or 9-char IDs at the route', async () => {
+    expect((await getShare('short', makeEnv())).status).toBe(404);
+    expect((await getShare('toolongstring', makeEnv())).status).toBe(404);
   });
 
   it('returns 404 for unknown ID', async () => {
@@ -589,5 +733,77 @@ describe('GET /api/share/:id', () => {
     const res = await worker.fetch(request, makeEnv());
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://gist.1mb.dev');
+  });
+});
+
+describe('Telemetry events', () => {
+  it('accepts question_arrived and emits dimensional keys', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const res = await postEvent(
+      JSON.stringify({
+        event: 'question_arrived',
+        questionId: 'audience',
+        persona: 'developer',
+        stepIndex: 1,
+      }),
+      env,
+    );
+    expect(res.status).toBe(202);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.endsWith(':question_arrived'))).toBe(true);
+    expect(keys.some((k: string) => k.endsWith(':question_arrived:audience'))).toBe(true);
+    expect(keys.some((k: string) => k.endsWith(':question_arrived:audience:developer'))).toBe(true);
+  });
+
+  it('accepts question_abandoned and emits dimensional keys', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const res = await postEvent(
+      JSON.stringify({
+        event: 'question_abandoned',
+        questionId: 'audience',
+        persona: 'new-builder',
+        stepIndex: 1,
+      }),
+      env,
+    );
+    expect(res.status).toBe(202);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.endsWith(':question_abandoned:audience'))).toBe(true);
+    expect(keys.some((k: string) => k.endsWith(':question_abandoned:audience:new-builder'))).toBe(
+      true,
+    );
+  });
+
+  it('emits expected dimensional keys for question_skipped', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'question_skipped', questionId: 'audience' }), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.endsWith(':question_skipped:audience'))).toBe(true);
+  });
+
+  it('drops feedback dimension for values outside the enum', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'feedback', feedback: 'lol' }), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.endsWith(':feedback:lol'))).toBe(false);
+    // The base event itself still records.
+    expect(keys.some((k: string) => k.endsWith(':feedback'))).toBe(true);
+  });
+
+  it('accepts feedback dimension for whitelisted values', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    await postEvent(JSON.stringify({ event: 'feedback', feedback: 'great' }), env);
+    const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+    const keys = putCalls.map((c: string[]) => c[0]);
+    expect(keys.some((k: string) => k.endsWith(':feedback:great'))).toBe(true);
   });
 });

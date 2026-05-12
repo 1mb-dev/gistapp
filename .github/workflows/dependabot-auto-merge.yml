@@ -1,5 +1,7 @@
 name: Dependabot auto-merge
 on: pull_request
+# Elevated blast radius: this workflow has GITHUB_TOKEN write scope.
+# SHA-pin is more load-bearing here than for ci.yml — Dependabot tracks bumps.
 jobs:
   auto-merge:
-    uses: 1mb-dev/.github/.github/workflows/dependabot-auto-merge.yml@main
+    uses: 1mb-dev/.github/.github/workflows/dependabot-auto-merge.yml@c9fbec465d957bc95dfbdaacb7546d7187513f95

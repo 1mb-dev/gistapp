@@ -4,4 +4,4 @@ on:
     tags: ['v*']
 jobs:
   release:
-    uses: 1mb-dev/.github/.github/workflows/release.yml@main
+    uses: 1mb-dev/.github/.github/workflows/release.yml@c9fbec465d957bc95dfbdaacb7546d7187513f95
