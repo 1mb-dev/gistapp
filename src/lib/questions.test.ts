@@ -61,6 +61,13 @@ describe('getVisibleQuestions', () => {
     expect(ids).toContain('data-freshness');
   });
 
+  it('hides data-freshness and api-details when dataSource is unsure (resolver folds to no-external)', () => {
+    const visible = getVisibleQuestions({ dataSource: 'unsure' });
+    const ids = visible.map((q) => q.id);
+    expect(ids).not.toContain('data-freshness');
+    expect(ids).not.toContain('api-details');
+  });
+
   it('shows user-input when dataSource is user-content', () => {
     const visible = getVisibleQuestions({ dataSource: 'user-content' });
     const ids = visible.map((q) => q.id);

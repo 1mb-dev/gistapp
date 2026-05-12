@@ -465,9 +465,10 @@ describe('Rate limiting on /api/stats', () => {
     expect(res.status).toBe(429);
   });
 
-  it('rate limit counter is per-IP', async () => {
-    // Note: In test environment, all requests default to 'unknown' IP
-    // This test verifies the key includes IP-based bucketing
+  it('rate limit key uses IP-bucketed format', async () => {
+    // Asserts the key schema only. True per-IP isolation cannot be tested here
+    // because `request.cf` is undefined in the test harness, so the IP slot
+    // always resolves to "unknown". Multi-IP behavior is verified manually.
     const kv = createMockKV();
     const env = makeEnv(kv);
 
@@ -478,7 +479,6 @@ describe('Rate limiting on /api/stats', () => {
       .map((c: string[]) => c[0])
       .filter((k: string) => k.startsWith('auth_ratelimit:'));
 
-    // Rate limit key should contain IP info
     expect(rateLimitKeys[0]).toMatch(/^auth_ratelimit:[a-z0-9.]+:\d+$/);
   });
 });
@@ -508,24 +508,9 @@ describe('Error sanitization', () => {
     consoleSpy.mockRestore();
   });
 
-  it('sanitizes unhandled error messages before logging', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const kv = createMockKV();
-    const env = makeEnv(kv);
-
-    // Make a normal request that doesn't trigger an error
-    await getStats('test-token-do-not-use-in-production', undefined, env);
-
-    // The console.error with "Unhandled worker error" should sanitize the error
-    // (Note: we won't actually trigger an unhandled error here, but the code path is tested)
-    const allErrorCalls = (consoleSpy as ReturnType<typeof vi.spyOn>).mock.calls.map(
-      (c: unknown[]) => String(c[0]),
-    );
-    // Should log "Unhandled worker error" with sanitized message, not full object
-    expect(allErrorCalls.some((msg: string) => /Unhandled worker error:/.test(msg))).toBe(false); // No unhandled errors in this test
-
-    consoleSpy.mockRestore();
-  });
+  // Removed: prior test claimed to verify sanitization of unhandled-error logs but
+  // never exercised the catch path. Re-add once we have a way to force a top-level
+  // throw and observe the sanitized log message.
 });
 
 // --- Share link tests ---

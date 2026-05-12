@@ -4,7 +4,7 @@ export type Persona = 'new-builder' | 'developer';
 /** Architecture complexity tier determined by the complexity router */
 export type ComplexityTier = 'minimal' | 'standard' | 'full';
 
-/** Data source categories from Q3 */
+/** Raw data source categories from Q3 (as captured from the form). */
 export type DataSource =
   | 'public-api'
   | 'rss'
@@ -13,6 +13,22 @@ export type DataSource =
   | 'user-content'
   | 'other'
   | 'unsure';
+
+/** Resolved data source kind. `'unsure'` folds to `'no-external'` (conservative default).
+ *  Use this anywhere downstream logic depends on the data-source decision (complexity tier,
+ *  spec content, conditional question visibility) so the resolution rule lives in one place. */
+export type ResolvedDataSourceKind =
+  | 'public-api'
+  | 'rss'
+  | 'static-file'
+  | 'other'
+  | 'user-content'
+  | 'no-external';
+
+/** Discriminated wrapper so call sites match on `kind` rather than comparing strings. */
+export interface ResolvedDataSource {
+  kind: ResolvedDataSourceKind;
+}
 
 /** Data freshness from Q4 */
 export type DataFreshness = 'realtime' | 'hourly' | 'daily' | 'static' | 'unsure';
@@ -147,4 +163,11 @@ export interface SpecMeta {
   generated: string;
   persona: Persona;
   complexityTier: ComplexityTier;
+}
+
+/** Answer set with `dataSource` replaced by the resolved discriminated form.
+ *  Produced by `resolveAnswers()` and consumed by spec-generation code that needs
+ *  the resolution rule applied (e.g. `'unsure'` → `'no-external'`). */
+export interface ResolvedAnswers extends Omit<UserAnswers, 'dataSource'> {
+  dataSource: ResolvedDataSource;
 }
