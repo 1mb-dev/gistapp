@@ -6,6 +6,7 @@ import {
   needsCron,
   shouldRecommendPWA,
 } from './complexity';
+import { resolveDataSource } from './resolve';
 
 const GIST_VERSION = '1.0';
 
@@ -88,10 +89,6 @@ function sanitizeBlock(text: string): string {
 
 // --- Helpers ---
 
-function resolveDataSource(a: Partial<UserAnswers>): string | undefined {
-  return a.dataSource === 'unsure' ? 'no-external' : a.dataSource;
-}
-
 function resolveDataFreshness(a: Partial<UserAnswers>): string | undefined {
   return a.dataFreshness === 'unsure' ? 'daily' : a.dataFreshness;
 }
@@ -100,16 +97,13 @@ function resolveDeviceTarget(a: Partial<UserAnswers>): string | undefined {
   return a.deviceTarget === 'unsure' ? 'both' : a.deviceTarget;
 }
 
-/** Checks external data using resolved source ('unsure' → 'no-external') because
- *  the spec generator needs resolved values. The questions.ts version intentionally
- *  checks raw answers to control conditional question visibility. */
 function hasResolvedExternalData(a: Partial<UserAnswers>): boolean {
-  const src = resolveDataSource(a);
-  return src === 'public-api' || src === 'rss' || src === 'static-file' || src === 'other';
+  const kind = resolveDataSource(a).kind;
+  return kind === 'public-api' || kind === 'rss' || kind === 'static-file' || kind === 'other';
 }
 
 function hasResolvedUserContent(a: Partial<UserAnswers>): boolean {
-  return a.dataSource === 'user-content';
+  return resolveDataSource(a).kind === 'user-content';
 }
 
 function hasResearchNotes(a: Partial<UserAnswers>): boolean {
