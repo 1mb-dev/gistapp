@@ -22,15 +22,15 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
-    "astro": "^6.4.7"
+    "astro": "^7.1.4"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.9",
-    "prettier": "^3.8.4",
+    "@astrojs/check": "^0.9.10",
+    "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
-    "typescript": "^6.0.3",
-    "@cloudflare/workers-types": "^4.20260615.1",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.100.0"
+    "typescript": "^7.0.2",
+    "@cloudflare/workers-types": "^5.20260727.1",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.114.0"
   }
 }
