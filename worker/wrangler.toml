@@ -2,6 +2,17 @@ name = "gist-insights"
 main = "src/index.ts"
 compatibility_date = "2025-12-01"
 
+# Unpinned, wrangler resolves the account from whatever credential is active, so a deploy run
+# under the wrong login silently lands on that account instead of failing. Pinned, the same
+# mistake is an immediate auth error. Must be repointed as part of any account migration.
+account_id = "a256c6c12e5ff87e9d2444d72ea65e3a"
+
+# Custom domain rather than workers.dev: the workers.dev subdomain is derived from the account,
+# so hardcoding it into the frontend (as gist-483.workers.dev was) breaks on any account move.
+# src/lib/config.ts and public/_headers CSP connect-src must both name this host, in lockstep —
+# updating one without the other silently blocks every beacon and share fetch.
+routes = [{ pattern = "gist-insights.1mb.dev", custom_domain = true }]
+
 [observability]
 enabled = true
 
@@ -11,4 +22,4 @@ invocation_logs = true
 
 [[kv_namespaces]]
 binding = "INSIGHTS"
-id = "01c6d2eade5e4fef9045776917ec3318"
+id = "b136f5957197458898295d5bd99f1047"
