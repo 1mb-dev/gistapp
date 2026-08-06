@@ -359,7 +359,7 @@ describe('page_viewed event', () => {
 });
 
 describe('KV expiration TTL', () => {
-  it('includes 90-day TTL on all kv.put calls', async () => {
+  it('writes analytics counters with no TTL so funnel history is permanent', async () => {
     const kv = createMockKV();
     const env = makeEnv(kv);
     await postEvent(JSON.stringify({ event: 'persona_selected', persona: 'developer' }), env);
@@ -367,8 +367,21 @@ describe('KV expiration TTL', () => {
     const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
     expect(putCalls.length).toBeGreaterThan(0);
     for (const call of putCalls) {
-      expect(call[2]).toMatchObject({ expirationTtl: 7_776_000 });
+      expect(call[2]?.expirationTtl).toBeUndefined();
+      expect(call[2]).toMatchObject({ metadata: { count: expect.any(Number) } });
     }
+  });
+
+  it('still expires share payloads after 90 days', async () => {
+    const kv = createMockKV();
+    const env = makeEnv(kv);
+    const res = await postShare(JSON.stringify({ title: 'ttl check' }), env);
+    expect(res.status).toBe(201);
+
+    const shareCall = (kv.put as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).startsWith('share:'),
+    );
+    expect(shareCall?.[2]).toMatchObject({ expirationTtl: 7_776_000 });
   });
 });
 

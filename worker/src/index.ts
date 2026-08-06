@@ -73,7 +73,14 @@ function today(): string {
 }
 
 /** Increment a KV counter. Read-increment-write is not atomic —
- *  at Gist's traffic (~tens of events/day) collisions are negligible. */
+ *  at Gist's traffic (~tens of events/day) collisions are negligible.
+ *
+ *  No expirationTtl: counters are permanent funnel history. They were previously written with
+ *  a 90-day TTL, which silently discarded the drop-off attribution these events exist to
+ *  provide — by 2026-08-06 the entire v2.3.0 telemetry had aged out to a single surviving
+ *  event. Key count is bounded by the event taxonomy (~tens per day), not by traffic volume,
+ *  and stats reads are date-prefixed, so unbounded retention costs nothing on either axis.
+ *  The TTL on share payloads is load-bearing and stays. */
 async function increment(kv: KVNamespace, key: string): Promise<void> {
   const raw = await kv.get(key);
   const current = Number(raw);
@@ -82,10 +89,7 @@ async function increment(kv: KVNamespace, key: string): Promise<void> {
     return;
   }
   const newCount = (isNaN(current) ? 0 : current) + 1;
-  await kv.put(key, String(newCount), {
-    expirationTtl: TTL_90_DAYS,
-    metadata: { count: newCount },
-  });
+  await kv.put(key, String(newCount), { metadata: { count: newCount } });
 }
 
 /** Constant-time string comparison to prevent timing attacks on token auth.
