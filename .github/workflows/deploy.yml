@@ -47,9 +47,10 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
-          apiToken: ${{ secrets.GIST_CF_API_TOKEN }}
-          accountId: ${{ secrets.GIST_CF_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=gistapp --branch=main
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.118.0'
+          command: pages deploy dist --project-name=gist-1mb --branch=main
 
   deploy-worker:
     needs: test
@@ -70,7 +71,8 @@ jobs:
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
-          apiToken: ${{ secrets.GIST_CF_API_TOKEN }}
-          accountId: ${{ secrets.GIST_CF_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.118.0'
           workingDirectory: worker
           command: deploy
