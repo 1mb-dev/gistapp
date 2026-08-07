@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
 
-      - uses: actions/setup-node@670825a89dc0abd596e7a3abd0f5e3f6e5faf37c # v4
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
         with:
           node-version: 22
           cache: npm
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
 
-      - uses: actions/setup-node@670825a89dc0abd596e7a3abd0f5e3f6e5faf37c # v4
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
         with:
           node-version: 22
           cache: npm
@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
 
-      - uses: actions/setup-node@670825a89dc0abd596e7a3abd0f5e3f6e5faf37c # v4
+      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
         with:
           node-version: 22
           cache: npm
