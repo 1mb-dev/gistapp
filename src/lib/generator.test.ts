@@ -67,13 +67,12 @@ describe('generateSpec', () => {
   it('returns valid markdown for empty answers', () => {
     const spec = generateSpec({});
     expect(spec).toContain('# ');
-    expect(spec).toContain('## Meta');
+    expect(spec).toContain('## Summary');
     expect(spec.length).toBeGreaterThan(0);
   });
 
   it('includes required sections for minimal tier', () => {
     const spec = generateSpec(minimalAnswers);
-    expect(spec).toContain('## Meta');
     expect(spec).toContain('## Summary');
     expect(spec).toContain('## UX States');
     expect(spec).toContain('Pre-Ship Checklist');
@@ -81,15 +80,21 @@ describe('generateSpec', () => {
     expect(spec).toContain('## Suggested Prompt');
   });
 
-  it('contains correct complexity tier in meta', () => {
+  it('declares its complexity tier in the footer', () => {
     const spec = generateSpec(minimalAnswers);
-    expect(spec).toContain('Complexity tier: minimal');
+    expect(spec).toContain('| minimal tier |');
+  });
+
+  it('footer carries tier and date, and no Meta block precedes the summary', () => {
+    const spec = generateSpec(minimalAnswers);
+    expect(spec).toMatch(/\| (minimal|standard|full) tier \| \d{4}-\d{2}-\d{2}$/);
+    expect(spec).not.toContain('## Meta');
   });
 
   it('includes Worker proxy mention for standard tier with public API', () => {
     const spec = generateSpec(standardAnswers);
     expect(spec).toContain('Worker');
-    expect(spec).toContain('Complexity tier: standard');
+    expect(spec).toContain('| standard tier |');
   });
 
   it('includes Configuration Checklist for standard tier', () => {
@@ -101,7 +106,7 @@ describe('generateSpec', () => {
     const spec = generateSpec(fullAnswers);
     expect(spec).toContain('KV');
     expect(spec).toContain('cron');
-    expect(spec).toContain('Complexity tier: full');
+    expect(spec).toContain('| full tier |');
   });
 
   it('includes CSP section', () => {
@@ -243,7 +248,7 @@ describe('generateSpec', () => {
 
   it('user-saves-data: produces standard tier', () => {
     const spec = generateSpec(userContentSavesDataAnswers);
-    expect(spec).toContain('Complexity tier: standard');
+    expect(spec).toContain('| standard tier |');
   });
 
   it('display-only: Data Flow describes static content, not form or API', () => {

@@ -146,11 +146,9 @@ export interface PersonaOverlay {
   autoDefault?: string;
 }
 
-/** Generated spec metadata */
+/** Generated spec metadata — rendered in the spec footer. */
 export interface SpecMeta {
-  gistVersion: string;
   generated: string;
-  persona: Persona;
   complexityTier: ComplexityTier;
 }
 
