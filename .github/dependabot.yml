@@ -5,9 +5,21 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # Minor/patch only. A major in the group blocks every other update in the same PR:
+      # one unresolvable peer range fails `npm ci` and nothing in the batch can merge.
       all-dependencies:
         patterns: ['*']
+        update-types: ['minor', 'patch']
+    ignore:
+      # @astrojs/check declares peer typescript ^5.0.0 || ^6.0.0 — TS 7 fails to resolve.
+      # Drop this entry once @astrojs/check accepts 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
