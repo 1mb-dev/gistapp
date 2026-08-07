@@ -26,15 +26,15 @@ const structuredData = {
     <section class="hero">
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="container">
-        <p class="hero-eyebrow animate-in">Zero-stack app specifications</p>
+        <p class="hero-eyebrow animate-in">Zero-stack app specs</p>
         <h1 class="hero-title animate-in-delay-1">
           Describe your idea.<br />
           <em class="hero-accent">Get a spec AI can build from.</em>
         </h1>
         <p class="hero-subtitle animate-in-delay-2">
-          Stop going back and forth with your AI coding assistant. Answer a few questions about your
-          app, and Gist generates a deployment-ready spec &mdash; architecture, security, and a
-          step-by-step build order included.
+          Answer a few questions about your app, and Gist writes the spec your AI assistant starts
+          from &mdash; architecture, security, and a build order that pauses at checkpoints for your
+          call.
         </p>
         <div class="hero-actions animate-in-delay-3">
           <a href="/create" class="btn btn-primary btn-hero"
@@ -86,8 +86,7 @@ const structuredData = {
       <div class="container">
         <h2 class="section-title">What you get</h2>
         <p class="section-subtitle">
-          A real spec &mdash; not a template. Tailored to your answers, right-sized to your app's
-          complexity.
+          Tailored to your answers, right-sized to your app's complexity.
         </p>
         <div class="spec-preview">
           <div class="spec-preview-header">
@@ -101,27 +100,26 @@ const structuredData = {
           <pre
             class="spec-preview-body"><code># Weather Now &mdash; Gist Specification
 
-## Meta
-- Gist version: 1.0
-- Complexity tier: minimal
-
 ## Summary
 &gt; A clutter-free personal weather app. Fetches weather
 &gt; from Open-Meteo (free, no key) directly from the
 &gt; browser. Plain HTML/CSS/JS &mdash; no framework, no build
 &gt; step, no server. Deploy static files to Cloudflare Pages.
 
+&gt; For AI assistants: Follow the Implementation Order
+&gt; step by step. If any requirement is ambiguous, ask
+&gt; the user &mdash; do not assume.
+
 ## Architecture
 - Host: Cloudflare Pages (free tier)
 - Framework: None &mdash; plain HTML/CSS/JS
-- Proxy: None (API is free, no key needed)
 
 ## Implementation Order
 1. Scaffold: index.html, style.css, app.js, favicon
 2. HTML shell with loading/error/success states
 3. Styles: cool palette, dark mode, responsive
-4. Connect: Open-Meteo API + Nominatim geocoding
-5. Web standards: og:image, CSP, meta tags
+4. Mock data &mdash; checkpoint: get design approval
+5. Connect: Open-Meteo API + Nominatim geocoding
 6. Deploy: push to Cloudflare Pages
 
 ## Suggested Prompt
@@ -189,7 +187,7 @@ const structuredData = {
                   stroke-linejoin="round"></path></svg
               >
             </div>
-            <h3>Less back-and-forth</h3>
+            <h3>Skip the cold start</h3>
             <p>
               Without a spec, your AI assistant asks a dozen clarifying questions. With one, it can
               start building immediately.
