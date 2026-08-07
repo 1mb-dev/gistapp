@@ -6,24 +6,13 @@ export type ComplexityTier = 'minimal' | 'standard' | 'full';
 
 /** Raw data source categories from Q3 (as captured from the form). */
 export type DataSource =
-  | 'public-api'
-  | 'rss'
-  | 'static-file'
-  | 'no-external'
-  | 'user-content'
-  | 'other'
-  | 'unsure';
+  'public-api' | 'rss' | 'static-file' | 'no-external' | 'user-content' | 'other' | 'unsure';
 
 /** Resolved data source kind. `'unsure'` folds to `'no-external'` (conservative default).
  *  Use this anywhere downstream logic depends on the data-source decision (complexity tier,
  *  spec content, conditional question visibility) so the resolution rule lives in one place. */
 export type ResolvedDataSourceKind =
-  | 'public-api'
-  | 'rss'
-  | 'static-file'
-  | 'other'
-  | 'user-content'
-  | 'no-external';
+  'public-api' | 'rss' | 'static-file' | 'other' | 'user-content' | 'no-external';
 
 /** Discriminated wrapper so call sites match on `kind` rather than comparing strings. */
 export interface ResolvedDataSource {
