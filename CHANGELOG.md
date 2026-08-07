@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-08-07
+
+### Changed
+
+- Hosting infrastructure migrated with zero downtime
+- Astro 6.4 → 7.1, plus a build and test tooling refresh
+- CI actions updated and re-pinned
+- Dependabot no longer groups major upgrades with minor/patch
+
+### Fixed
+
+- Analytics counters no longer expire, so funnel telemetry is retained
+
+### Security
+
+- Open advisories reduced from 6 to 3; the remainder are build-time only
+
+_Releases 2.0.0 through 2.3.0 are not recorded in this file; see GitHub Releases._
+
 ## [1.3.1] - 2026-02-24
 
 ### Added
