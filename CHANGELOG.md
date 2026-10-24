@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that held back the auto-merge author check and the Node 22/24 matrix
 - CI bundles the Worker with `wrangler deploy --dry-run`, so a bundle break fails the PR instead of
   the next deploy
+- Deploy builds on Node 24 with checkout v7 and setup-node v7, pinned by SHA
 
 ### Fixed
 
