@@ -16,11 +16,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
@@ -32,16 +32,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      deployments: write
     steps:
-      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
+      - id: wrangler
+        # The exact lockfile version, so the action reuses the npm ci install. Without
+        # wranglerVersion, a failed install check makes it fetch the latest 4.x and still pass.
+        run: echo "version=$(node -p "require('wrangler/package.json').version")" >> "$GITHUB_OUTPUT"
       - run: npm run build
 
       - name: Deploy to Cloudflare Pages
@@ -49,7 +52,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.118.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           command: pages deploy dist --project-name=gist-1mb --branch=main
 
   deploy-worker:
@@ -59,20 +62,22 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@e51e5fe84fc33b4c73ebe40526b2694712b5b858 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
+      - id: wrangler
+        run: echo "version=$(node -p "require('wrangler/package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.118.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           workingDirectory: worker
           command: deploy

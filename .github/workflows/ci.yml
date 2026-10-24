@@ -17,3 +17,19 @@ permissions:
 jobs:
   ci:
     uses: 1mb-dev/.github/.github/workflows/ci-node.yml@main
+
+  # The Worker ships from deploy.yml, which no PR runs; the shared jobs test worker/src but
+  # never bundle it, so a bundle break would first surface in a production deploy.
+  worker-bundle:
+    name: Worker bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Bundle the Worker without deploying
+        working-directory: worker
+        run: npx --no-install wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
