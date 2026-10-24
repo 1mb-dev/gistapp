@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- CI runs once per PR instead of twice, and also daily on main and on manual dispatch
+
 ### Fixed
 
 - The pre-commit secret check scans only the lines a commit adds, including renamed files and
