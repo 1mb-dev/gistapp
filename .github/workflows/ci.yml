@@ -1,5 +1,19 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # A Dependabot auto-merge is pushed by GITHUB_TOKEN, which starts no push run, so main is
+  # unverified until the next daily run. Dispatch verifies it on demand.
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   ci:
-    uses: 1mb-dev/.github/.github/workflows/ci-node.yml@c9fbec465d957bc95dfbdaacb7546d7187513f95
+    uses: 1mb-dev/.github/.github/workflows/ci-node.yml@main

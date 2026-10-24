@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- CI runs once per PR instead of twice, and also daily on main and on manual dispatch
+- CI, release and Dependabot auto-merge call `1mb-dev/.github` at `main` instead of a May pin
+  that held back the auto-merge author check and the Node 22/24 matrix
+
+### Fixed
+
+- The pre-commit secret check scans only the lines a commit adds, including renamed files and
+  paths with spaces or non-ASCII characters
+
 ## [2.5.0] - 2026-08-07
 
 ### Changed
