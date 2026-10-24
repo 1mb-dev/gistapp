@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI bundles the Worker with `wrangler deploy --dry-run`, so a bundle break fails the PR instead of
   the next deploy
 - Deploy builds on Node 24 with checkout v7 and setup-node v7, pinned by SHA
+- Deploy uses the lockfile's wrangler (4.151.1). The workflow pinned 4.118.0, which the action
+  installed over the locked version on every deploy
 
 ### Fixed
 
