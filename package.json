@@ -21,16 +21,16 @@
     "worker:test": "vitest run worker/"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.11"
+    "@astrojs/sitemap": "^3.7.6",
+    "astro": "^7.4.13"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@cloudflare/workers-types": "^5.20261113.1",
+    "@cloudflare/workers-types": "^5.20261120.1",
     "prettier": "^3.10.1",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11",
-    "wrangler": "^4.161.0"
+    "wrangler": "^4.165.0"
   }
 }
